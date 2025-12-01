@@ -4,103 +4,110 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IP Address Manager</title>
-    <!-- Tailwind CSS voor styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome voor iconen -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Custom scrollbar voor een strakke look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1f2937; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4b5563; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #6b7280; 
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Console log styling */
+        .console-log {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.75rem;
+            line-height: 1.2;
         }
         
-        .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
+        /* Progress bar animatie */
+        @keyframes progress-indeterminate {
+            0% { width: 0%; margin-left: 0%; }
+            50% { width: 70%; margin-left: 15%; }
+            100% { width: 0%; margin-left: 100%; }
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .animate-progress {
+            animation: progress-indeterminate 2s infinite ease-in-out;
         }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen p-4 md:p-8">
 
-    <div class="max-w-6xl mx-auto">
+    <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <header class="mb-8 flex flex-col md:flex-row justify-between items-center border-b border-gray-700 pb-4">
             <div class="flex items-center gap-3 mb-4 md:mb-0">
-                <i class="fa-solid fa-network-wired text-green-500 text-3xl"></i>
+                <div class="relative">
+                    <i class="fa-solid fa-network-wired text-green-500 text-3xl"></i>
+                    <span id="global-status" class="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 hidden"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500 hidden"></span>
+                    </span>
+                </div>
                 <h1 class="text-3xl font-bold tracking-wide">IP Manager</h1>
             </div>
             <div class="text-sm text-gray-400">
-                <span id="device-count">0</span> apparaten opgeslagen
+                <span id="device-count">0</span> apparaten | Backend: <span id="backend-status" class="text-yellow-500">Checken...</span>
             </div>
         </header>
 
         <!-- Controls Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
             
-            <!-- Handmatig Toevoegen -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
-                <h2 class="text-xl font-semibold mb-4 text-green-400"><i class="fa-solid fa-plus mr-2"></i>Toevoegen</h2>
-                <form id="add-form" class="space-y-3">
-                    <div>
-                        <input type="text" id="input-ip" placeholder="IP Adres (bv. 192.168.1.10)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-green-500 transition">
-                    </div>
-                    <div>
-                        <input type="text" id="input-hostname" placeholder="Hostname (bv. server-01)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-green-500 transition">
-                    </div>
-                    <div>
-                        <input type="text" id="input-mac" placeholder="MAC Adres (bv. AA:BB:CC:DD:EE:FF)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-green-500 transition">
-                    </div>
-                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200">
-                        Opslaan
-                    </button>
+            <!-- Handmatig Toevoegen (3 cols) -->
+            <div class="lg:col-span-3 bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700">
+                <h2 class="text-lg font-semibold mb-3 text-green-400"><i class="fa-solid fa-plus mr-2"></i>Toevoegen</h2>
+                <form id="add-form" class="space-y-2">
+                    <input type="text" id="input-ip" placeholder="IP Adres" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-green-500 transition">
+                    <input type="text" id="input-hostname" placeholder="Hostname" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-green-500 transition">
+                    <input type="text" id="input-mac" placeholder="MAC Adres" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-green-500 transition">
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded text-sm transition">Opslaan</button>
                 </form>
             </div>
 
-            <!-- Subnet Scanner (Live) -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 relative overflow-hidden">
-                <div class="absolute top-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded-bl font-bold">LIVE SCAN</div>
-                <h2 class="text-xl font-semibold mb-4 text-blue-400"><i class="fa-solid fa-radar mr-2"></i>Netwerk Scan</h2>
-                <p class="text-gray-400 text-sm mb-3">Scant het lokale netwerk via de backend.</p>
-                <div class="space-y-3">
-                    <!-- Input is nu enabled -->
-                    <input type="text" id="subnet-input" placeholder="bv. 192.168.1.1-255 (Leeg = Auto)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-blue-500 transition">
-                    <button id="btn-scan" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200 flex justify-center items-center gap-2">
-                        <span>Start Echte Scan</span>
-                        <i class="fa-solid fa-spinner fa-spin hidden" id="scan-spinner"></i>
+            <!-- Scanner & Console (6 cols) -->
+            <div class="lg:col-span-6 bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700 flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-semibold text-blue-400"><i class="fa-solid fa-radar mr-2"></i>Netwerk Scanner</h2>
+                    <span class="text-xs bg-blue-900 text-blue-200 px-2 py-1 rounded">Backend Mode</span>
+                </div>
+                
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="subnet-input" placeholder="Subnet (bv. 192.168.1.1-255) [Leeg=Auto]" class="flex-1 bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
+                    <button id="btn-scan" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded text-sm transition flex items-center gap-2">
+                        <span>Scan</span>
+                        <i class="fa-solid fa-search"></i>
                     </button>
-                    <div id="server-status" class="text-xs text-center text-gray-500">
-                        Klaar voor scan
-                    </div>
+                </div>
+
+                <!-- Progress Bar Container (Hidden by default) -->
+                <div id="progress-container" class="w-full bg-gray-900 rounded-full h-2.5 mb-3 hidden overflow-hidden">
+                    <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full animate-progress" style="width: 50%"></div>
+                </div>
+
+                <!-- Console Log Window -->
+                <div class="flex-1 bg-black border border-gray-600 rounded p-2 overflow-y-auto max-h-32 min-h-[80px] console-log text-green-500" id="scan-console">
+                    <div class="text-gray-500">System ready. Waiting for command...</div>
                 </div>
             </div>
 
-            <!-- Acties & Statistieken -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 flex flex-col justify-between">
+            <!-- Acties (3 cols) -->
+            <div class="lg:col-span-3 bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700 flex flex-col justify-between">
                 <div>
-                    <h2 class="text-xl font-semibold mb-4 text-purple-400"><i class="fa-solid fa-sliders mr-2"></i>Beheer</h2>
-                    <p class="text-gray-400 text-sm mb-4">Beheer je lokale dataset.</p>
+                    <h2 class="text-lg font-semibold mb-3 text-purple-400"><i class="fa-solid fa-sliders mr-2"></i>Data Acties</h2>
                 </div>
-                <div class="space-y-3">
-                    <button onclick="clearData()" class="w-full bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 font-bold py-2 px-4 rounded transition duration-200">
-                        <i class="fa-solid fa-trash mr-2"></i>Alles Verwijderen
+                <div class="space-y-2">
+                    <button onclick="pingAll()" class="w-full bg-purple-900/50 hover:bg-purple-800 text-purple-200 border border-purple-800 font-bold py-2 rounded text-sm transition">
+                        <i class="fa-solid fa-bolt mr-2"></i>Ping Alles (Test)
                     </button>
-                    <button onclick="exportCSV()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600 font-bold py-2 px-4 rounded transition duration-200">
+                    <button onclick="exportCSV()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600 font-bold py-2 rounded text-sm transition">
                         <i class="fa-solid fa-download mr-2"></i>Export CSV
+                    </button>
+                    <button onclick="clearData()" class="w-full bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 font-bold py-2 rounded text-sm transition">
+                        <i class="fa-solid fa-trash mr-2"></i>Reset Lijst
                     </button>
                 </div>
             </div>
@@ -109,64 +116,72 @@
         <!-- Data Tabel -->
         <div class="bg-gray-800 rounded-lg shadow-lg border border-gray-700 overflow-hidden">
             <div class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
-                <h3 class="text-lg font-semibold text-gray-200">Netwerk Overzicht</h3>
-                <input type="text" id="search-input" placeholder="Zoeken..." class="bg-gray-900 border border-gray-600 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500">
+                <h3 class="text-lg font-semibold text-gray-200">Resultaten</h3>
+                <input type="text" id="search-input" placeholder="Filter resultaten..." class="bg-gray-900 border border-gray-600 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500">
             </div>
             
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-gray-900 text-gray-400 text-sm uppercase tracking-wider">
-                            <th class="p-4 font-semibold cursor-pointer hover:text-white select-none" onclick="sortTable('ip')">
-                                IP Adres <i class="fa-solid fa-sort ml-1"></i>
-                            </th>
-                            <th class="p-4 font-semibold cursor-pointer hover:text-white select-none" onclick="sortTable('hostname')">
-                                Hostname <i class="fa-solid fa-sort ml-1"></i>
-                            </th>
-                            <th class="p-4 font-semibold cursor-pointer hover:text-white select-none" onclick="sortTable('mac')">
-                                MAC Adres <i class="fa-solid fa-sort ml-1"></i>
-                            </th>
+                            <th class="p-4 font-semibold w-16 text-center">Status</th>
+                            <th class="p-4 font-semibold cursor-pointer hover:text-white select-none" onclick="sortTable('ip')">IP <i class="fa-solid fa-sort ml-1"></i></th>
+                            <th class="p-4 font-semibold cursor-pointer hover:text-white select-none" onclick="sortTable('hostname')">Hostname <i class="fa-solid fa-sort ml-1"></i></th>
+                            <th class="p-4 font-semibold cursor-pointer hover:text-white select-none" onclick="sortTable('mac')">MAC <i class="fa-solid fa-sort ml-1"></i></th>
                             <th class="p-4 font-semibold text-right">Acties</th>
                         </tr>
                     </thead>
                     <tbody id="device-list" class="divide-y divide-gray-700 text-gray-300">
-                        <!-- Rows worden hier gegenereerd -->
+                        <!-- Rows -->
                     </tbody>
                 </table>
             </div>
             
             <div id="empty-state" class="hidden p-8 text-center text-gray-500">
                 <i class="fa-solid fa-server text-4xl mb-3"></i>
-                <p>Geen apparaten gevonden. Voeg er een toe of start een scan.</p>
+                <p>Geen data.</p>
             </div>
         </div>
     </div>
 
     <!-- Notification Toast -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50">
-        Actie succesvol!
-    </div>
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50"></div>
 
     <script>
-        // --- State Management ---
+        // --- Config & State ---
         let devices = [];
         let sortCol = 'ip';
         let sortAsc = true;
-        const BACKEND_BASE_URL = '/api/scan';
-
+        
+        // Let op: Relatief pad voor Docker/Nginx
+        const API_BASE = '/api'; 
+        
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
             loadData();
             renderTable();
+            checkBackend();
         });
 
-        // --- Core Functions ---
+        async function checkBackend() {
+            const statusEl = document.getElementById('backend-status');
+            try {
+                // Simpele fetch naar root of scan endpoint om te zien of server leeft
+                await fetch(`${API_BASE}/ping`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({}) });
+                statusEl.innerText = "Online";
+                statusEl.className = "text-green-500 font-bold";
+                logToConsole("System: Backend verbonden.", "text-green-500");
+            } catch (e) {
+                statusEl.innerText = "Offline";
+                statusEl.className = "text-red-500 font-bold";
+                logToConsole("System: Backend onbereikbaar!", "text-red-500");
+            }
+        }
 
+        // --- Core Functions ---
         function loadData() {
             const stored = localStorage.getItem('network_devices');
-            if (stored) {
-                devices = JSON.parse(stored);
-            }
+            if (stored) devices = JSON.parse(stored);
         }
 
         function saveData() {
@@ -175,29 +190,22 @@
         }
 
         function addDevice(ip, hostname, mac) {
-            // Validatie
-            if (!ip) {
-                showToast("IP Adres is verplicht!", "error");
-                return false;
-            }
+            if (!ip) return false;
+            
+            const existingIndex = devices.findIndex(d => d.ip === ip);
+            const newDevice = {
+                id: existingIndex >= 0 ? devices[existingIndex].id : Date.now() + Math.random(),
+                ip: ip.trim(),
+                hostname: hostname ? hostname.trim() : (existingIndex >= 0 ? devices[existingIndex].hostname : "?"),
+                mac: mac ? formatMac(mac.trim()) : (existingIndex >= 0 ? devices[existingIndex].mac : "Unknown"),
+                lastSeen: new Date().toISOString(),
+                status: 'unknown' // unknown, online, offline
+            };
 
-            // Check duplicate IP
-            if (devices.some(d => d.ip === ip)) {
-                // Als het een scan is, overschrijven we vaak stil
-                const index = devices.findIndex(d => d.ip === ip);
-                devices[index] = {
-                    ...devices[index],
-                    hostname: hostname || devices[index].hostname,
-                    mac: mac || devices[index].mac
-                };
+            if (existingIndex >= 0) {
+                devices[existingIndex] = newDevice;
             } else {
-                devices.push({
-                    id: Date.now() + Math.random(),
-                    ip: ip.trim(),
-                    hostname: hostname ? hostname.trim() : "?",
-                    mac: mac ? formatMac(mac.trim()) : "Unknown",
-                    addedAt: new Date().toISOString()
-                });
+                devices.push(newDevice);
             }
 
             saveData();
@@ -206,24 +214,138 @@
         }
 
         function deleteDevice(id) {
-            if(confirm("Weet je zeker dat je dit apparaat wilt verwijderen?")) {
+            if(confirm("Verwijderen?")) {
                 devices = devices.filter(d => d.id !== id);
                 saveData();
                 renderTable();
-                showToast("Apparaat verwijderd");
             }
         }
 
         function clearData() {
-            if(confirm("WEET JE HET ZEKER? Alle data wordt verwijderd.")) {
+            if(confirm("Alles wissen?")) {
                 devices = [];
                 saveData();
                 renderTable();
-                showToast("Alle data gewist");
+                logToConsole("Database gewist.", "text-yellow-500");
             }
         }
 
-        // --- UI Rendering ---
+        // --- PING Logic ---
+
+        async function pingHost(id, ip) {
+            const row = document.getElementById(`row-${id}`);
+            const icon = document.getElementById(`status-icon-${id}`);
+            const btnIcon = document.getElementById(`ping-btn-icon-${id}`);
+            
+            // UI Update naar "loading"
+            if(icon) icon.className = "fa-solid fa-spinner fa-spin text-yellow-500";
+            if(btnIcon) btnIcon.className = "fa-solid fa-spinner fa-spin";
+            
+            logToConsole(`Ping: ${ip}...`, "text-gray-400");
+
+            try {
+                const res = await fetch(`${API_BASE}/ping`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip })
+                });
+                
+                const data = await res.json();
+                
+                // Update device state
+                const devIndex = devices.findIndex(d => d.id === id);
+                if (devIndex >= 0) {
+                    devices[devIndex].status = data.alive ? 'online' : 'offline';
+                    devices[devIndex].latency = data.time;
+                    saveData();
+                }
+
+                // UI Update resultaat
+                if (data.alive) {
+                    logToConsole(`Ping: ${ip} is ONLINE (${data.time}ms)`, "text-green-400");
+                    if(icon) icon.className = "fa-solid fa-circle text-green-500 fade-in";
+                } else {
+                    logToConsole(`Ping: ${ip} is OFFLINE`, "text-red-400");
+                    if(icon) icon.className = "fa-regular fa-circle text-red-500 fade-in";
+                }
+
+            } catch (err) {
+                logToConsole(`Ping Error: ${ip}`, "text-red-500");
+                if(icon) icon.className = "fa-solid fa-triangle-exclamation text-red-500";
+            } finally {
+                if(btnIcon) btnIcon.className = "fa-solid fa-bolt";
+            }
+        }
+
+        async function pingAll() {
+            if(confirm(`Wil je alle ${devices.length} apparaten pingen? Dit kan even duren.`)) {
+                logToConsole(`Start Bulk Ping...`, "text-blue-400");
+                for (let d of devices) {
+                    await pingHost(d.id, d.ip); // Sequentieel om server niet te overbelasten
+                }
+                logToConsole(`Bulk Ping Voltooid.`, "text-blue-400 font-bold");
+            }
+        }
+
+        // --- SCAN Logic ---
+
+        document.getElementById('btn-scan').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-scan');
+            const subnetInput = document.getElementById('subnet-input').value.trim();
+            const progressBar = document.getElementById('progress-container');
+            const log = document.getElementById('scan-console');
+
+            // UI State Lock
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            progressBar.classList.remove('hidden');
+            
+            logToConsole("--------------------------------", "text-gray-600");
+            logToConsole(`Scan start: ${subnetInput || 'Auto (Lokaal)'}`, "text-white");
+            logToConsole("Backend aanroepen...", "text-gray-400");
+
+            let url = `${API_BASE}/scan`;
+            if (subnetInput) url += `?subnet=${encodeURIComponent(subnetInput)}`;
+
+            try {
+                // Omdat we geen echte progress events hebben, tonen we fake updates
+                const fakeUpdates = setInterval(() => {
+                    const msgs = ["ARP tabellen lezen...", "MAC adressen resolven...", "Data normaliseren..."];
+                    const randomMsg = msgs[Math.floor(Math.random() * msgs.length)];
+                    logToConsole(randomMsg, "text-gray-500 italic");
+                }, 800);
+
+                const response = await fetch(url);
+                clearInterval(fakeUpdates); // Stop fake messages
+
+                if (!response.ok) throw new Error(response.statusText);
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    logToConsole(`Scan succesvol! ${data.devices.length} resultaten.`, "text-green-400 font-bold");
+                    
+                    data.devices.forEach(d => {
+                        addDevice(d.ip, d.name, d.mac);
+                    });
+                    
+                    showToast(`${data.devices.length} apparaten gevonden`);
+                } else {
+                    throw new Error(data.message);
+                }
+
+            } catch (error) {
+                logToConsole(`Scan Fout: ${error.message}`, "text-red-500 font-bold");
+                showToast("Fout tijdens scannen", "error");
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                progressBar.classList.add('hidden');
+                logToConsole("Klaar.", "text-gray-500");
+            }
+        });
+
+        // --- UI Helper Functions ---
 
         function renderTable() {
             const tbody = document.getElementById('device-list');
@@ -232,23 +354,17 @@
             
             tbody.innerHTML = '';
 
-            // Filteren
             let filtered = devices.filter(d => 
                 d.ip.includes(search) || 
                 d.hostname.toLowerCase().includes(search) || 
                 d.mac.toLowerCase().includes(search)
             );
 
-            // Sorteren
+            // Sort
             filtered.sort((a, b) => {
                 let valA = a[sortCol];
                 let valB = b[sortCol];
-
-                // Speciale IP sortering (Natuurlijke sortering)
-                if (sortCol === 'ip') {
-                    return sortAsc ? compareIPs(valA, valB) : compareIPs(valB, valA);
-                }
-
+                if (sortCol === 'ip') return sortAsc ? compareIPs(valA, valB) : compareIPs(valB, valA);
                 if (valA < valB) return sortAsc ? -1 : 1;
                 if (valA > valB) return sortAsc ? 1 : -1;
                 return 0;
@@ -258,16 +374,28 @@
                 emptyState.classList.remove('hidden');
             } else {
                 emptyState.classList.add('hidden');
-                
                 filtered.forEach(device => {
+                    // Status icon logic
+                    let statusIcon = '<i class="fa-regular fa-circle text-gray-600" title="Onbekend"></i>';
+                    if (device.status === 'online') statusIcon = '<i class="fa-solid fa-circle text-green-500 fade-in" title="Online"></i>';
+                    if (device.status === 'offline') statusIcon = '<i class="fa-regular fa-circle text-red-500 fade-in" title="Offline"></i>';
+
                     const tr = document.createElement('tr');
-                    tr.className = "hover:bg-gray-700 transition duration-150 fade-in group";
+                    tr.id = `row-${device.id}`;
+                    tr.className = "hover:bg-gray-700 transition duration-150 border-b border-gray-700 group";
                     tr.innerHTML = `
+                        <td class="p-4 text-center text-xs" id="status-icon-${device.id}">${statusIcon}</td>
                         <td class="p-4 text-green-400 font-mono">${device.ip}</td>
-                        <td class="p-4 text-white font-medium">${device.hostname}</td>
+                        <td class="p-4 text-white font-medium">
+                            ${device.hostname}
+                            ${device.latency ? `<span class="ml-2 text-xs text-gray-500">(${device.latency}ms)</span>` : ''}
+                        </td>
                         <td class="p-4 text-gray-400 font-mono text-sm">${device.mac}</td>
-                        <td class="p-4 text-right">
-                            <button onclick="deleteDevice(${device.id})" class="text-gray-500 hover:text-red-400 transition">
+                        <td class="p-4 text-right flex justify-end gap-2">
+                            <button onclick="pingHost(${device.id}, '${device.ip}')" class="bg-gray-600 hover:bg-yellow-600 text-white p-2 rounded text-xs transition" title="Ping nu">
+                                <i id="ping-btn-icon-${device.id}" class="fa-solid fa-bolt"></i>
+                            </button>
+                            <button onclick="deleteDevice(${device.id})" class="bg-gray-600 hover:bg-red-600 text-white p-2 rounded text-xs transition" title="Verwijder">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </td>
@@ -278,148 +406,63 @@
             updateCount();
         }
 
-        function updateCount() {
-            document.getElementById('device-count').innerText = devices.length;
+        function logToConsole(msg, classes="text-gray-300") {
+            const consoleEl = document.getElementById('scan-console');
+            const line = document.createElement('div');
+            const time = new Date().toLocaleTimeString('nl-NL', {hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            
+            line.className = `${classes} mb-1`;
+            line.innerHTML = `<span class="opacity-50 mr-2">[${time}]</span> ${msg}`;
+            
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight; // Auto scroll
         }
 
-        // --- ECHTE SCAN LOGIC (praat met Backend via Nginx) ---
-
-        document.getElementById('btn-scan').addEventListener('click', async () => {
-            const btn = document.getElementById('btn-scan');
-            const spinner = document.getElementById('scan-spinner');
-            const statusTxt = document.getElementById('server-status');
-            
-            // Haal de subnet input op
-            const subnetInput = document.getElementById('subnet-input').value.trim();
-            
-            // Bouw de URL
-            let fetchUrl = BACKEND_BASE_URL;
-            if (subnetInput) {
-                fetchUrl += `?subnet=${encodeURIComponent(subnetInput)}`;
-            }
-            
-            // UI State change
-            btn.disabled = true;
-            btn.classList.add('opacity-75');
-            spinner.classList.remove('hidden');
-            statusTxt.innerText = `Bezig met scannen ${subnetInput ? 'van ' + subnetInput : 'lokaal netwerk'}...`;
-            statusTxt.className = "text-xs text-center text-blue-400";
-
-            try {
-                // Roep de lokale server aan via de proxy
-                const response = await fetch(fetchUrl);
-                
-                if (!response.ok) {
-                    throw new Error('Server reageerde niet goed: ' + response.status);
-                }
-
-                const data = await response.json();
-
-                if (data.success && Array.isArray(data.devices)) {
-                    let newCount = 0;
-                    
-                    data.devices.forEach(d => {
-                        const ip = d.ip;
-                        const mac = d.mac;
-                        const hostname = d.name || "?";
-                        
-                        addDevice(ip, hostname, mac);
-                        newCount++;
-                    });
-
-                    showToast(`${newCount} apparaten geupdate/gevonden!`);
-                    statusTxt.innerText = "Scan voltooid.";
-                    statusTxt.className = "text-xs text-center text-green-500";
-                }
-
-            } catch (error) {
-                console.error(error);
-                showToast("Kan backend niet bereiken.", "error");
-                statusTxt.innerText = "Fout: Check console voor details.";
-                statusTxt.className = "text-xs text-center text-red-500 font-bold";
-            } finally {
-                // Reset UI
-                btn.disabled = false;
-                btn.classList.remove('opacity-75');
-                spinner.classList.add('hidden');
-            }
-        });
-
-        // --- Helpers ---
-
-        // Form Submit
+        // --- Standard Helpers (Sort, Mac, Toast) ---
+        function updateCount() { document.getElementById('device-count').innerText = devices.length; }
+        
         document.getElementById('add-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const ip = document.getElementById('input-ip').value;
             const hostname = document.getElementById('input-hostname').value;
             const mac = document.getElementById('input-mac').value;
-
-            if(addDevice(ip, hostname, mac)) {
-                e.target.reset();
-                showToast("Apparaat toegevoegd");
-            }
+            if(addDevice(ip, hostname, mac)) { e.target.reset(); showToast("Opgeslagen"); }
         });
-
-        // Search Input
+        
         document.getElementById('search-input').addEventListener('keyup', renderTable);
-
-        // Sorting Logic
+        
         function sortTable(col) {
-            if (sortCol === col) {
-                sortAsc = !sortAsc;
-            } else {
-                sortCol = col;
-                sortAsc = true;
-            }
+            if (sortCol === col) sortAsc = !sortAsc;
+            else { sortCol = col; sortAsc = true; }
             renderTable();
         }
 
-        // IP Vergelijker (Natuurlijke sortering)
         function compareIPs(a, b) {
-            const numA = ipToNumber(a);
-            const numB = ipToNumber(b);
+            const numA = a.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0;
+            const numB = b.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0;
             return numA - numB;
         }
 
-        function ipToNumber(ip) {
-            return ip.split('.').reduce((acc, octet) => {
-                return (acc << 8) + parseInt(octet, 10);
-            }, 0) >>> 0;
-        }
-
-        // MAC Formatter
         function formatMac(mac) {
             let clean = mac.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
             return clean.match(/.{1,2}/g)?.join(':') || mac;
         }
 
-        // Toast Notification
         function showToast(msg, type="success") {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
             toast.className = `fixed bottom-5 right-5 px-6 py-3 rounded shadow-lg transform transition-all duration-300 z-50 ${type === 'error' ? 'bg-red-600' : 'bg-green-600'} text-white translate-y-0 opacity-100`;
-            
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
         }
 
-        // CSV Export
         function exportCSV() {
-            let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "IP,Hostname,MAC\n";
-            devices.forEach(d => {
-                csvContent += `${d.ip},${d.hostname},${d.mac}\n`;
-            });
-            const encodedUri = encodeURI(csvContent);
+            let csv = "data:text/csv;charset=utf-8,IP,Hostname,MAC,Status,Latency\n";
+            devices.forEach(d => csv += `${d.ip},${d.hostname},${d.mac},${d.status},${d.latency || ''}\n`);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "network_devices.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            link.href = encodeURI(csv);
+            link.download = "network_devices.csv";
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
-
     </script>
 </body>
 </html>
