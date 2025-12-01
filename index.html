@@ -75,15 +75,16 @@
             <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 relative overflow-hidden">
                 <div class="absolute top-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded-bl font-bold">LIVE SCAN</div>
                 <h2 class="text-xl font-semibold mb-4 text-blue-400"><i class="fa-solid fa-radar mr-2"></i>Netwerk Scan</h2>
-                <p class="text-gray-400 text-sm mb-3">Scant het lokale netwerk via de Docker backend.</p>
+                <p class="text-gray-400 text-sm mb-3">Scant het lokale netwerk via de backend.</p>
                 <div class="space-y-3">
-                    <input type="text" id="subnet-input" placeholder="Huidig Netwerk (Auto)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-blue-500 transition" disabled title="Automatische detectie in backend modus">
+                    <!-- Input is nu enabled -->
+                    <input type="text" id="subnet-input" placeholder="bv. 192.168.1.1-255 (Leeg = Auto)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-blue-500 transition">
                     <button id="btn-scan" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200 flex justify-center items-center gap-2">
                         <span>Start Echte Scan</span>
                         <i class="fa-solid fa-spinner fa-spin hidden" id="scan-spinner"></i>
                     </button>
                     <div id="server-status" class="text-xs text-center text-gray-500">
-                        Klaar voor scan via Nginx proxy
+                        Klaar voor scan
                     </div>
                 </div>
             </div>
@@ -151,10 +152,7 @@
         let devices = [];
         let sortCol = 'ip';
         let sortAsc = true;
-        
-        // AANGEPAST VOOR DOCKER/NGINX:
-        // We gebruiken nu een relatief pad. Nginx vangt /api/ op en stuurt het naar Node.
-        const BACKEND_URL = '/api/scan';
+        const BACKEND_BASE_URL = '/api/scan';
 
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -185,8 +183,7 @@
 
             // Check duplicate IP
             if (devices.some(d => d.ip === ip)) {
-                // Als het een scan is, overschrijven we vaak stil, maar voor handmatig vragen we het
-                // We updaten gewoon het bestaande item in de array
+                // Als het een scan is, overschrijven we vaak stil
                 const index = devices.findIndex(d => d.ip === ip);
                 devices[index] = {
                     ...devices[index],
@@ -292,16 +289,25 @@
             const spinner = document.getElementById('scan-spinner');
             const statusTxt = document.getElementById('server-status');
             
+            // Haal de subnet input op
+            const subnetInput = document.getElementById('subnet-input').value.trim();
+            
+            // Bouw de URL
+            let fetchUrl = BACKEND_BASE_URL;
+            if (subnetInput) {
+                fetchUrl += `?subnet=${encodeURIComponent(subnetInput)}`;
+            }
+            
             // UI State change
             btn.disabled = true;
             btn.classList.add('opacity-75');
             spinner.classList.remove('hidden');
-            statusTxt.innerText = "Bezig met scannen... (dit kan even duren)";
+            statusTxt.innerText = `Bezig met scannen ${subnetInput ? 'van ' + subnetInput : 'lokaal netwerk'}...`;
             statusTxt.className = "text-xs text-center text-blue-400";
 
             try {
                 // Roep de lokale server aan via de proxy
-                const response = await fetch(BACKEND_URL);
+                const response = await fetch(fetchUrl);
                 
                 if (!response.ok) {
                     throw new Error('Server reageerde niet goed: ' + response.status);
@@ -313,13 +319,10 @@
                     let newCount = 0;
                     
                     data.devices.forEach(d => {
-                        // De backend return: { ip: '...', mac: '...', name: '...' }
-                        // Wij mappen 'name' naar 'hostname'
                         const ip = d.ip;
                         const mac = d.mac;
                         const hostname = d.name || "?";
                         
-                        // Voeg toe (of update)
                         addDevice(ip, hostname, mac);
                         newCount++;
                     });
@@ -332,7 +335,7 @@
             } catch (error) {
                 console.error(error);
                 showToast("Kan backend niet bereiken.", "error");
-                statusTxt.innerText = "Fout: Is de container gestart met --network host?";
+                statusTxt.innerText = "Fout: Check console voor details.";
                 statusTxt.className = "text-xs text-center text-red-500 font-bold";
             } finally {
                 // Reset UI
@@ -371,7 +374,7 @@
             renderTable();
         }
 
-        // IP Vergelijker (Natuurlijke sortering: 2 < 10)
+        // IP Vergelijker (Natuurlijke sortering)
         function compareIPs(a, b) {
             const numA = ipToNumber(a);
             const numB = ipToNumber(b);
@@ -386,9 +389,7 @@
 
         // MAC Formatter
         function formatMac(mac) {
-            // Verwijder alles behalve hex karakters
             let clean = mac.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
-            // Voeg dubbele punten toe elke 2 chars
             return clean.match(/.{1,2}/g)?.join(':') || mac;
         }
 
@@ -407,11 +408,9 @@
         function exportCSV() {
             let csvContent = "data:text/csv;charset=utf-8,";
             csvContent += "IP,Hostname,MAC\n";
-            
             devices.forEach(d => {
                 csvContent += `${d.ip},${d.hostname},${d.mac}\n`;
             });
-
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
