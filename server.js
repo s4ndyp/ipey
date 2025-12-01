@@ -17,7 +17,9 @@ function parseIPRange(rangeStr) {
         const parts = rangeStr.split('-');
         const startIP = parts[0];
         const endPart = parts[1];
-        const startOctets = startIP.split('.map(Number);
+        
+        // FIX: De split moest worden afgesloten met ')', en dan pas .map(Number)
+        const startOctets = startIP.split('.').map(Number);
         
         let endLastOctet = endPart.includes('.') ? parseInt(endPart.split('.')[3]) : parseInt(endPart);
 
