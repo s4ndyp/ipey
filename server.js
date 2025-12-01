@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const ping = require('ping');
-const { exec } = require('child_process'); // We gebruiken nu de shell
+const { exec } = require('child_process'); 
 
 const app = express();
 const PORT = 3000;
@@ -30,8 +30,24 @@ function parseIPRange(rangeStr) {
     return ips;
 }
 
+// --- Helper: Debug Netwerk Info ---
+// Voert 'ifconfig' uit om te zien in welke netwerk-omgeving we draaien
+function checkNetworkInterface(logFunction) {
+    return new Promise((resolve) => {
+        exec('ifconfig', (error, stdout, stderr) => {
+            if (error) {
+                logFunction(`[NET CHECK] Kan ifconfig niet draaien.`);
+                return resolve();
+            }
+            // Log alleen de regels met 'inet ' om IP's te tonen
+            const ipLines = stdout.split('\n').filter(l => l.includes('inet ')).map(l => l.trim());
+            logFunction(`[NET CHECK] Huidige container IP's: ${ipLines.join(' | ')}`);
+            resolve();
+        });
+    });
+}
+
 // --- Helper: Shell ARP Lezer ---
-// Voert letterlijk 'cat /proc/net/arp' uit, net zoals jij in de terminal deed.
 function getArpTableFromShell(logFunction) {
     return new Promise((resolve) => {
         exec('cat /proc/net/arp', (error, stdout, stderr) => {
@@ -40,14 +56,7 @@ function getArpTableFromShell(logFunction) {
                 return resolve([]);
             }
 
-            // DEBUG: Laat zien wat de shell teruggaf (eerste 100 tekens ofzo)
-            // Dit zie je straks in je frontend console.
-            logFunction(`[DEBUG RAW] Shell output lengte: ${stdout.length} chars`);
-            if (stdout.length > 0) {
-                 // Log de eerste niet-header regel als voorbeeld
-                 const firstDataLine = stdout.split('\n')[1];
-                 if (firstDataLine) logFunction(`[DEBUG RAW SAMPLE] ${firstDataLine}`);
-            }
+            logFunction(`[DEBUG RAW] ARP bestand grootte: ${stdout.length} chars`);
 
             const arpEntries = [];
             const lines = stdout.split('\n');
@@ -90,11 +99,14 @@ app.get('/api/scan', async (req, res) => {
         const scanRange = req.query.subnet;
         log(`Scan verzoek voor: ${scanRange || 'Auto'}`);
 
+        // STAP 0: Check netwerk omgeving
+        await checkNetworkInterface(log);
+
         let results = [];
 
         if (scanRange && scanRange.includes('-')) {
             const ipList = parseIPRange(scanRange);
-            log(`Range berekend: ${ipList.length} adressen.`);
+            log(`Range: ${ipList.length} adressen.`);
             
             // 1. Ping
             const pingPromises = ipList.map(ip => 
@@ -103,12 +115,12 @@ app.get('/api/scan', async (req, res) => {
 
             const pingResults = await Promise.all(pingPromises);
             const aliveHosts = pingResults.filter(r => r.alive).map(r => r.host);
-            log(`Ping voltooid. ${aliveHosts.length} hosts reageerden.`);
+            log(`Ping voltooid. ${aliveHosts.length} hosts online.`);
 
             // 2. Lees ARP via SHELL
-            log(`Uitlezen ARP via shell ('cat /proc/net/arp')...`);
+            log(`Uitlezen ARP via shell...`);
             const arpTableRaw = await getArpTableFromShell(log);
-            log(`${arpTableRaw.length} MAC-adressen geparsed uit shell output.`);
+            log(`${arpTableRaw.length} MAC-adressen gevonden.`);
 
             // 3. Match
             results = aliveHosts.map(hostIP => {
@@ -125,7 +137,7 @@ app.get('/api/scan', async (req, res) => {
             results = await find(scanRange || null);
         }
 
-        log(`Scan sessie afgerond. ${results.length} resultaten.`);
+        log(`Scan klaar. ${results.length} resultaten.`);
         
         res.json({
             success: true,
