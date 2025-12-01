@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const ping = require('ping');
-const fs = require('fs'); // Nodig om direct ARP tabel te lezen
+const fs = require('fs'); 
 
 const app = express();
 const PORT = 3000;
@@ -31,11 +31,10 @@ function parseIPRange(rangeStr) {
 }
 
 // --- Helper: Handmatige ARP Lezer (Linux/Docker) ---
-// Dit lost het probleem op dat 'local-devices' soms faalt in containers.
-function getArpTable() {
+// Deze functie leest direct de /proc/net/arp file en lost het parser probleem op
+function getArpTable(logFunction) {
     const arpEntries = [];
     try {
-        // Lees direct de kernel ARP tabel
         const fileContent = fs.readFileSync('/proc/net/arp', 'utf8');
         const lines = fileContent.split('\n');
 
@@ -44,31 +43,37 @@ function getArpTable() {
             const line = lines[i].trim();
             if (!line) continue;
             
-            // Regex om IP en MAC te pakken. 
-            // Formaat: IP address (0) | HW type (1) | Flags (2) | HW address (3) ...
+            // Splits de lijn op één of meer witruimtes
             const cols = line.split(/\s+/);
+            
             if (cols.length >= 4) {
                 const ip = cols[0];
-                const mac = cols[3];
-                // Filter incomplete entries (00:00:00...)
-                if (mac !== '00:00:00:00:00:00') {
+                const mac = cols[3]; // Dit is de kolom die de MAC bevat
+
+                if (mac && mac !== '00:00:00:00:00:00') {
                     arpEntries.push({ ip, mac });
+                    // NIEUW: Log de succesvolle parse naar de frontend console
+                    logFunction(`[DEBUG: ARP OK] IP: ${ip}, MAC: ${mac}`); 
+                } else {
+                    logFunction(`[DEBUG: ARP SKIP] IP: ${ip} MAC is leeg of 00:00:00...`);
                 }
+            } else {
+                 logFunction(`[DEBUG: ARP SKIP] Ongeldige kolomstructuur op regel ${i}.`);
             }
         }
     } catch (e) {
-        console.error("Kan /proc/net/arp niet lezen:", e);
+        logFunction(`FATALE FOUT bij lezen /proc/net/arp: ${e.message}`);
     }
     return arpEntries;
 }
 
 // --- API: SCAN ---
 app.get('/api/scan', async (req, res) => {
-    // We houden een logboek bij om terug te sturen naar de frontend
     const sessionLogs = [];
     function log(msg) {
-        console.log(msg); // Toon in Docker logs
-        sessionLogs.push(`[Server] ${msg}`); // Voeg toe aan response
+        const time = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        console.log(`[${time}] ${msg}`); 
+        sessionLogs.push(`[${time}] ${msg}`); 
     }
 
     try {
@@ -91,19 +96,17 @@ app.get('/api/scan', async (req, res) => {
             const aliveHosts = pingResults.filter(r => r.alive);
             log(`Ping voltooid. ${aliveHosts.length} hosts reageerden.`);
 
-            // 2. Lees ARP (Nu met onze eigen robuuste functie)
+            // 2. Lees ARP (met onze eigen functie, inclusief logging)
             log(`Uitlezen ARP tabel (/proc/net/arp)...`);
-            const arpTable = getArpTable();
-            log(`${arpTable.length} items in ARP cache gevonden.`);
+            const arpTable = getArpTable(log); // Geef de log functie mee
+            log(`${arpTable.length} MAC-adressen gevonden in ARP cache.`);
 
-            // 3. Match
+            // 3. Match en combineer
             results = aliveHosts.map(host => {
                 const arpEntry = arpTable.find(a => a.ip === host.host);
                 
-                // Hostname resolutie is lastig in Docker zonder DNS setup.
-                // We geven nu een standaard naam terug of proberen te kijken of 'ping' iets teruggaf.
+                // Hostname blijft 'Unknown' (wegens Docker/RDNS beperkingen)
                 let hostname = 'Unknown';
-                if (host.host === '127.0.0.1') hostname = 'localhost';
                 
                 return {
                     ip: host.host,
@@ -114,21 +117,21 @@ app.get('/api/scan', async (req, res) => {
 
         } else {
             // Auto modus blijft bestaan voor backward compatibility
-            log(`Geen range opgegeven, fallback modus.`);
-            const find = require('local-devices');
-            results = await find();
+            log(`Geen range opgegeven, fallback modus (Kan Hostnames/MACs missen).`);
+            const find = require('local-devices'); 
+            results = await find(scanRange || null);
         }
 
         log(`Scan sessie afgerond. ${results.length} resultaten.`);
         
         res.json({
             success: true,
-            logs: sessionLogs, // We sturen de logs mee terug!
+            logs: sessionLogs, 
             devices: results
         });
 
     } catch (error) {
-        log(`FATALE FOUT: ${error.message}`);
+        log(`FATALE FOUT in scan proces: ${error.message}`);
         res.status(500).json({ success: false, logs: sessionLogs, message: error.message });
     }
 });
