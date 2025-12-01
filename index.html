@@ -76,7 +76,10 @@
                 </div>
                 
                 <div class="flex gap-2 mb-3">
-                    <input type="text" id="subnet-input" placeholder="Subnet (bv. 192.168.1.1-255) [Leeg=Auto]" class="flex-1 bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
+                    <!-- NIEUWE INPUTS HIER -->
+                    <input type="text" id="base-ip-input" placeholder="Basis IP (bv. 192.168.1)" class="flex-1 bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
+                    <input type="text" id="range-suffix-input" placeholder="Bereik (bv. 1-255 of 0/24) [Leeg=Auto]" class="flex-1 bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
+                    <!-- EINDE NIEUWE INPUTS -->
                     <button id="btn-scan" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded text-sm transition flex items-center gap-2">
                         <span>Scan</span>
                         <i class="fa-solid fa-search"></i>
@@ -273,7 +276,7 @@
                 logToConsole(`Ping Error: ${ip}`, "text-red-500");
                 if(icon) icon.className = "fa-solid fa-triangle-exclamation text-red-500";
             } finally {
-                if(btnIcon) btnIcon.className = "fa-solid fa-bolt";
+                if(btnIcon) btnBcon.className = "fa-solid fa-bolt";
             }
         }
 
@@ -291,7 +294,25 @@
 
         document.getElementById('btn-scan').addEventListener('click', async () => {
             const btn = document.getElementById('btn-scan');
-            const subnetInput = document.getElementById('subnet-input').value.trim();
+            // GEWIJZIGD: Lees beide velden
+            const baseIP = document.getElementById('base-ip-input').value.trim();
+            const rangeSuffix = document.getElementById('range-suffix-input').value.trim();
+            
+            let subnet = '';
+            if (rangeSuffix.startsWith('/') || rangeSuffix.includes('.')) {
+                // CIDR (bv. 192.168.1.0/24) of volledig bereik (bv. 192.168.1.1-100)
+                subnet = baseIP + rangeSuffix;
+            } else if (baseIP && rangeSuffix) {
+                // Base IP + Suffix (bv. 192.168.1 + 1-255 -> 192.168.1.1-255)
+                subnet = baseIP + '.' + rangeSuffix;
+            } else if (baseIP && !rangeSuffix) {
+                // Alleen base IP (laat local-devices zelf invullen)
+                subnet = baseIP;
+            } else {
+                // Beide leeg: local-devices scant lokaal
+                subnet = ''; 
+            }
+
             const progressBar = document.getElementById('progress-container');
             const log = document.getElementById('scan-console');
 
@@ -301,11 +322,11 @@
             progressBar.classList.remove('hidden');
             
             logToConsole("--------------------------------", "text-gray-600");
-            logToConsole(`Scan start: ${subnetInput || 'Auto (Lokaal)'}`, "text-white");
+            logToConsole(`Scan start: ${subnet || 'Auto (Lokaal)'}`, "text-white");
             logToConsole("Backend aanroepen...", "text-gray-400");
 
             let url = `${API_BASE}/scan`;
-            if (subnetInput) url += `?subnet=${encodeURIComponent(subnetInput)}`;
+            if (subnet) url += `?subnet=${encodeURIComponent(subnet)}`;
 
             try {
                 // Omdat we geen echte progress events hebben, tonen we fake updates
@@ -345,7 +366,7 @@
             }
         });
 
-        // --- UI Helper Functions ---
+        // --- UI Helper Functions (onveranderd) ---
 
         function renderTable() {
             const tbody = document.getElementById('device-list');
@@ -418,7 +439,6 @@
             consoleEl.scrollTop = consoleEl.scrollHeight; // Auto scroll
         }
 
-        // --- Standard Helpers (Sort, Mac, Toast) ---
         function updateCount() { document.getElementById('device-count').innerText = devices.length; }
         
         document.getElementById('add-form').addEventListener('submit', (e) => {
