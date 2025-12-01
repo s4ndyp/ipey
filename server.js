@@ -18,7 +18,7 @@ function parseIPRange(rangeStr) {
         const startIP = parts[0];
         const endPart = parts[1];
         
-        // FIX: De split moest worden afgesloten met ')', en dan pas .map(Number)
+        // Split correct afsluiten en mappen
         const startOctets = startIP.split('.').map(Number);
         
         let endLastOctet = endPart.includes('.') ? parseInt(endPart.split('.')[3]) : parseInt(endPart);
@@ -32,33 +32,36 @@ function parseIPRange(rangeStr) {
     return ips;
 }
 
-// --- Helper: Handmatige ARP Lezer (Linux/Docker) ---
+// --- Helper: Robuuste ARP Lezer (Regex based) ---
 function getArpTable(logFunction) {
     const arpEntries = [];
     try {
         const fileContent = fs.readFileSync('/proc/net/arp', 'utf8');
         const lines = fileContent.split('\n');
 
-        // Sla header over (regel 0)
+        // Regex om een MAC adres te vinden (6 groepen van 2 hex karakters gescheiden door :)
+        const macRegex = /([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}/;
+        // Regex om een IP adres te vinden (simpele versie)
+        const ipRegex = /(\d{1,3}\.){3}\d{1,3}/;
+
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
             
-            // Splits de lijn op één of meer witruimtes
-            const cols = line.split(/\s+/);
-            
-            if (cols.length >= 4) {
-                const ip = cols[0];
-                const mac = cols[3]; 
+            // In plaats van kolommen tellen, zoeken we patronen
+            const ipMatch = line.match(ipRegex);
+            const macMatch = line.match(macRegex);
 
-                if (mac && mac !== '00:00:00:00:00:00') {
+            if (ipMatch && macMatch) {
+                const ip = ipMatch[0];
+                const mac = macMatch[0];
+
+                // Filter ongeldige MACs
+                if (mac !== '00:00:00:00:00:00') {
                     arpEntries.push({ ip, mac });
-                    logFunction(`[DEBUG: ARP OK] IP: ${ip}, MAC: ${mac}`); 
-                } else {
-                    logFunction(`[DEBUG: ARP SKIP] IP: ${ip} MAC is leeg of 00:00:00...`);
+                    // Loggen dat we hem gevonden hebben
+                    logFunction(`[DEBUG: PARSED] IP: ${ip} -> MAC: ${mac}`);
                 }
-            } else {
-                 logFunction(`[DEBUG: ARP SKIP] Ongeldige kolomstructuur op regel ${i}.`);
             }
         }
     } catch (e) {
@@ -85,46 +88,36 @@ app.get('/api/scan', async (req, res) => {
         if (scanRange && scanRange.includes('-')) {
             const ipList = parseIPRange(scanRange);
             log(`Range berekend: ${ipList.length} adressen.`);
-            log(`Starten van parallelle ping sweep...`);
-
+            
             // 1. Ping
             const pingPromises = ipList.map(ip => 
                 ping.promise.probe(ip, { timeout: 1.5, extra: ['-c', '1'] })
             );
 
             const pingResults = await Promise.all(pingPromises);
-            const aliveHosts = pingResults.filter(r => r.alive).map(r => r.host); // Alleen IP-adressen van online hosts
+            const aliveHosts = pingResults.filter(r => r.alive).map(r => r.host);
             log(`Ping voltooid. ${aliveHosts.length} hosts reageerden.`);
 
-            // 2. Lees ARP (met onze eigen functie, inclusief logging)
-            log(`Uitlezen ARP tabel (/proc/net/arp)...`);
+            // 2. Lees ARP (met Regex parser)
+            log(`Uitlezen ARP tabel...`);
             const arpTableRaw = getArpTable(log); 
-            log(`${arpTableRaw.length} MAC-adressen gevonden in ARP cache (ruwe data).`);
+            log(`${arpTableRaw.length} MAC-adressen succesvol geparsed.`);
 
-            // 3. Filter ARP tabel en match met gescande IP's
-            const arpTableFiltered = arpTableRaw.filter(entry => 
-                aliveHosts.includes(entry.ip)
-            );
-            log(`ARP-cache gefilterd: ${arpTableFiltered.length} matches met gescande IP's.`);
-
-
-            // 4. Combineer data
+            // 3. Match
+            // We zoeken in de geparsede tabel naar het IP.
             results = aliveHosts.map(hostIP => {
-                const arpEntry = arpTableFiltered.find(a => a.ip === hostIP);
-                
-                // Hostname blijft 'Unknown' 
-                let hostname = 'Unknown';
+                // Zoek exacte match
+                const arpEntry = arpTableRaw.find(a => a.ip === hostIP);
                 
                 return {
                     ip: hostIP,
-                    name: hostname,
+                    name: 'Unknown',
                     mac: arpEntry ? arpEntry.mac : '??:??:??:??:??:??'
                 };
             });
 
         } else {
-            // Auto modus blijft bestaan voor backward compatibility
-            log(`Geen range opgegeven, fallback modus (Kan Hostnames/MACs missen).`);
+            // Fallback
             const find = require('local-devices'); 
             results = await find(scanRange || null);
         }
@@ -138,7 +131,7 @@ app.get('/api/scan', async (req, res) => {
         });
 
     } catch (error) {
-        log(`FATALE FOUT in scan proces: ${error.message}`);
+        log(`FATALE FOUT: ${error.message}`);
         res.status(500).json({ success: false, logs: sessionLogs, message: error.message });
     }
 });
