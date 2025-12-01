@@ -16,14 +16,12 @@
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Console log styling */
         .console-log {
             font-family: 'Courier New', Courier, monospace;
             font-size: 0.75rem;
             line-height: 1.2;
         }
         
-        /* Progress bar animatie */
         @keyframes progress-indeterminate {
             0% { width: 0%; margin-left: 0%; }
             50% { width: 70%; margin-left: 15%; }
@@ -42,6 +40,7 @@
             <div class="flex items-center gap-3 mb-4 md:mb-0">
                 <div class="relative">
                     <i class="fa-solid fa-network-wired text-green-500 text-3xl"></i>
+                    <!-- Status indicator -->
                     <span id="global-status" class="absolute -top-1 -right-1 flex h-3 w-3">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 hidden"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500 hidden"></span>
@@ -75,23 +74,26 @@
                     <span class="text-xs bg-blue-900 text-blue-200 px-2 py-1 rounded">Backend Mode</span>
                 </div>
                 
-                <div class="flex gap-2 mb-3">
-                    <!-- NIEUWE INPUTS HIER -->
-                    <input type="text" id="base-ip-input" placeholder="Basis IP (bv. 192.168.1)" class="flex-1 bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
-                    <input type="text" id="range-suffix-input" placeholder="Bereik (bv. 1-255 of 0/24) [Leeg=Auto]" class="flex-1 bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
-                    <!-- EINDE NIEUWE INPUTS -->
-                    <button id="btn-scan" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded text-sm transition flex items-center gap-2">
-                        <span>Scan</span>
+                <div class="flex gap-2 mb-3 items-end">
+                    <div class="flex-1">
+                        <label class="text-xs text-gray-400 block mb-1">Netwerk/IP Basis</label>
+                        <input type="text" id="base-ip-input" placeholder="bv. 192.168.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
+                    </div>
+                    <div class="w-24">
+                         <label class="text-xs text-gray-400 block mb-1">Bereik</label>
+                        <input type="text" id="range-suffix-input" placeholder="1-20" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
+                    </div>
+                    <button id="btn-scan" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm transition flex items-center justify-center gap-2 h-[38px]">
                         <i class="fa-solid fa-search"></i>
                     </button>
                 </div>
 
-                <!-- Progress Bar Container (Hidden by default) -->
+                <!-- Progress Bar -->
                 <div id="progress-container" class="w-full bg-gray-900 rounded-full h-2.5 mb-3 hidden overflow-hidden">
                     <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full animate-progress" style="width: 50%"></div>
                 </div>
 
-                <!-- Console Log Window -->
+                <!-- Console -->
                 <div class="flex-1 bg-black border border-gray-600 rounded p-2 overflow-y-auto max-h-32 min-h-[80px] console-log text-green-500" id="scan-console">
                     <div class="text-gray-500">System ready. Waiting for command...</div>
                 </div>
@@ -100,17 +102,29 @@
             <!-- Acties (3 cols) -->
             <div class="lg:col-span-3 bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700 flex flex-col justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold mb-3 text-purple-400"><i class="fa-solid fa-sliders mr-2"></i>Data Acties</h2>
+                    <h2 class="text-lg font-semibold mb-3 text-purple-400"><i class="fa-solid fa-sliders mr-2"></i>Acties</h2>
+                    
+                    <!-- NIEUWE SECTIE: SINGLE PING -->
+                    <div class="mb-4 pb-4 border-b border-gray-700">
+                        <label class="text-xs text-gray-400 block mb-1">Test enkel IP</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="manual-ping-ip" placeholder="192.168.1.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-purple-500 transition">
+                            <button onclick="pingManual()" id="btn-manual-ping" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-2 rounded text-sm transition">
+                                <i class="fa-solid fa-bolt"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="space-y-2">
-                    <button onclick="pingAll()" class="w-full bg-purple-900/50 hover:bg-purple-800 text-purple-200 border border-purple-800 font-bold py-2 rounded text-sm transition">
-                        <i class="fa-solid fa-bolt mr-2"></i>Ping Alles (Test)
+                    <button onclick="pingAll()" class="w-full bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-200 border border-yellow-600 font-bold py-2 rounded text-sm transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-layer-group"></i> Ping Lijst
                     </button>
                     <button onclick="exportCSV()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600 font-bold py-2 rounded text-sm transition">
-                        <i class="fa-solid fa-download mr-2"></i>Export CSV
+                        <i class="fa-solid fa-download mr-2"></i> Export CSV
                     </button>
                     <button onclick="clearData()" class="w-full bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 font-bold py-2 rounded text-sm transition">
-                        <i class="fa-solid fa-trash mr-2"></i>Reset Lijst
+                        <i class="fa-solid fa-trash mr-2"></i> Reset Lijst
                     </button>
                 </div>
             </div>
@@ -142,12 +156,12 @@
             
             <div id="empty-state" class="hidden p-8 text-center text-gray-500">
                 <i class="fa-solid fa-server text-4xl mb-3"></i>
-                <p>Geen data.</p>
+                <p>Geen data. Voeg toe of scan.</p>
             </div>
         </div>
     </div>
 
-    <!-- Notification Toast -->
+    <!-- Toast -->
     <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50"></div>
 
     <script>
@@ -155,8 +169,6 @@
         let devices = [];
         let sortCol = 'ip';
         let sortAsc = true;
-        
-        // Let op: Relatief pad voor Docker/Nginx
         const API_BASE = '/api'; 
         
         // --- Init ---
@@ -169,7 +181,7 @@
         async function checkBackend() {
             const statusEl = document.getElementById('backend-status');
             try {
-                // Simpele fetch naar root of scan endpoint om te zien of server leeft
+                // Test ping naar backend
                 await fetch(`${API_BASE}/ping`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({}) });
                 statusEl.innerText = "Online";
                 statusEl.className = "text-green-500 font-bold";
@@ -236,7 +248,6 @@
         // --- PING Logic ---
 
         async function pingHost(id, ip) {
-            const row = document.getElementById(`row-${id}`);
             const icon = document.getElementById(`status-icon-${id}`);
             const btnIcon = document.getElementById(`ping-btn-icon-${id}`);
             
@@ -276,7 +287,8 @@
                 logToConsole(`Ping Error: ${ip}`, "text-red-500");
                 if(icon) icon.className = "fa-solid fa-triangle-exclamation text-red-500";
             } finally {
-                if(btnIcon) btnBcon.className = "fa-solid fa-bolt";
+                if(btnIcon) btnIcon.className = "fa-solid fa-bolt";
+                renderTable(); // Refresh tabel icoontjes
             }
         }
 
@@ -284,9 +296,46 @@
             if(confirm(`Wil je alle ${devices.length} apparaten pingen? Dit kan even duren.`)) {
                 logToConsole(`Start Bulk Ping...`, "text-blue-400");
                 for (let d of devices) {
-                    await pingHost(d.id, d.ip); // Sequentieel om server niet te overbelasten
+                    await pingHost(d.id, d.ip); 
                 }
                 logToConsole(`Bulk Ping Voltooid.`, "text-blue-400 font-bold");
+            }
+        }
+
+        // NIEUW: Handmatige enkele Ping
+        async function pingManual() {
+            const ipInput = document.getElementById('manual-ping-ip');
+            const ip = ipInput.value.trim();
+            const btnIcon = document.querySelector('#btn-manual-ping i');
+            
+            if (!ip) {
+                showToast("Vul een IP in", "error");
+                return;
+            }
+
+            const originalClass = btnIcon.className;
+            btnIcon.className = "fa-solid fa-spinner fa-spin";
+            logToConsole(`Manual Ping: ${ip}...`, "text-gray-400");
+
+            try {
+                const res = await fetch(`${API_BASE}/ping`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip })
+                });
+                const data = await res.json();
+
+                if (data.alive) {
+                    logToConsole(`Ping ${ip}: ONLINE (${data.time}ms)`, "text-green-400 font-bold");
+                    showToast(`${ip} is Online!`);
+                } else {
+                    logToConsole(`Ping ${ip}: OFFLINE`, "text-red-400 font-bold");
+                    showToast(`${ip} is Offline`, "error");
+                }
+            } catch (e) {
+                logToConsole(`Ping Error: ${e.message}`, "text-red-500");
+            } finally {
+                btnIcon.className = originalClass;
             }
         }
 
@@ -294,29 +343,35 @@
 
         document.getElementById('btn-scan').addEventListener('click', async () => {
             const btn = document.getElementById('btn-scan');
-            // GEWIJZIGD: Lees beide velden
-            const baseIP = document.getElementById('base-ip-input').value.trim();
+            
+            // Haal ruwe waarden op
+            let baseIP = document.getElementById('base-ip-input').value.trim();
             const rangeSuffix = document.getElementById('range-suffix-input').value.trim();
             
+            // Split op punten
+            const parts = baseIP.split('.');
+            
+            // Als de gebruiker 4 delen invult (bv 10.1.2.1) EN een bereik (1-20)
+            if (parts.length === 4 && rangeSuffix && !rangeSuffix.startsWith('/')) {
+                 baseIP = parts.slice(0, 3).join('.');
+                 logToConsole(`Correctie: Base IP aangepast naar ${baseIP}`, "text-yellow-500 italic");
+            }
+
+            // Subnet bouwen
             let subnet = '';
             if (rangeSuffix.startsWith('/') || rangeSuffix.includes('.')) {
-                // CIDR (bv. 192.168.1.0/24) of volledig bereik (bv. 192.168.1.1-100)
                 subnet = baseIP + rangeSuffix;
             } else if (baseIP && rangeSuffix) {
-                // Base IP + Suffix (bv. 192.168.1 + 1-255 -> 192.168.1.1-255)
                 subnet = baseIP + '.' + rangeSuffix;
             } else if (baseIP && !rangeSuffix) {
-                // Alleen base IP (laat local-devices zelf invullen)
                 subnet = baseIP;
             } else {
-                // Beide leeg: local-devices scant lokaal
-                subnet = ''; 
+                subnet = ''; // Lokaal
             }
 
             const progressBar = document.getElementById('progress-container');
             const log = document.getElementById('scan-console');
 
-            // UI State Lock
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
             progressBar.classList.remove('hidden');
@@ -329,7 +384,6 @@
             if (subnet) url += `?subnet=${encodeURIComponent(subnet)}`;
 
             try {
-                // Omdat we geen echte progress events hebben, tonen we fake updates
                 const fakeUpdates = setInterval(() => {
                     const msgs = ["ARP tabellen lezen...", "MAC adressen resolven...", "Data normaliseren..."];
                     const randomMsg = msgs[Math.floor(Math.random() * msgs.length)];
@@ -337,7 +391,7 @@
                 }, 800);
 
                 const response = await fetch(url);
-                clearInterval(fakeUpdates); // Stop fake messages
+                clearInterval(fakeUpdates);
 
                 if (!response.ok) throw new Error(response.statusText);
 
@@ -366,7 +420,7 @@
             }
         });
 
-        // --- UI Helper Functions (onveranderd) ---
+        // --- Helpers ---
 
         function renderTable() {
             const tbody = document.getElementById('device-list');
@@ -396,7 +450,6 @@
             } else {
                 emptyState.classList.add('hidden');
                 filtered.forEach(device => {
-                    // Status icon logic
                     let statusIcon = '<i class="fa-regular fa-circle text-gray-600" title="Onbekend"></i>';
                     if (device.status === 'online') statusIcon = '<i class="fa-solid fa-circle text-green-500 fade-in" title="Online"></i>';
                     if (device.status === 'offline') statusIcon = '<i class="fa-regular fa-circle text-red-500 fade-in" title="Offline"></i>';
@@ -431,12 +484,10 @@
             const consoleEl = document.getElementById('scan-console');
             const line = document.createElement('div');
             const time = new Date().toLocaleTimeString('nl-NL', {hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
-            
             line.className = `${classes} mb-1`;
             line.innerHTML = `<span class="opacity-50 mr-2">[${time}]</span> ${msg}`;
-            
             consoleEl.appendChild(line);
-            consoleEl.scrollTop = consoleEl.scrollHeight; // Auto scroll
+            consoleEl.scrollTop = consoleEl.scrollHeight;
         }
 
         function updateCount() { document.getElementById('device-count').innerText = devices.length; }
