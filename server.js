@@ -6,23 +6,26 @@ const app = express();
 const PORT = 3000;
 
 // Middleware
-app.use(cors()); // Sta verzoeken van de HTML pagina toe
+app.use(cors()); // Sta verzoeken van andere domeinen/poorten toe
 app.use(express.json());
 
 // API Endpoint om te scannen
 app.get('/api/scan', async (req, res) => {
     try {
-        console.log('Start netwerk scan...');
+        // 1. Lees de subnet parameter uit de URL (bijv. ?subnet=192.168.1.1-255)
+        // Als deze leeg is, wordt 'scanRange' null.
+        const scanRange = req.query.subnet || null;
         
-        // Dit voert een ARP scan uit op het lokale netwerk
-        // Let op: Dit scant het netwerk waar deze computer mee verbonden is.
-        // Het negeert voor nu even de specifieke subnet input van de frontend 
-        // omdat ARP gebonden is aan je fysieke interface.
-        const devices = await find();
+        console.log(`Start netwerk scan... Range: ${scanRange ? scanRange : 'Auto (Lokaal)'}`);
+        
+        // 2. Voer de scan uit
+        // Als scanRange null is, scant 'local-devices' automatisch het lokale subnet.
+        // Als er wel een range is (bv '192.168.0.1-192.168.0.25'), wordt die gebruikt.
+        const devices = await find(scanRange);
 
         console.log(`${devices.length} apparaten gevonden.`);
         
-        // Stuur resultaat terug naar de frontend
+        // 3. Stuur resultaat terug naar de frontend
         res.json({
             success: true,
             devices: devices
@@ -32,12 +35,11 @@ app.get('/api/scan', async (req, res) => {
         console.error('Scan fout:', error);
         res.status(500).json({ 
             success: false, 
-            message: 'Kon netwerk niet scannen. Zorg dat je dit als Administrator/Root draait als dat nodig is.' 
+            message: 'Kon netwerk niet scannen. Controleer of het subnet formaat correct is (bv. 192.168.1.1-255) en of je voldoende rechten hebt.' 
         });
     }
 });
 
 app.listen(PORT, () => {
     console.log(`Backend server draait op http://localhost:${PORT}`);
-    console.log(`Klaar om verzoeken van de IP Manager te ontvangen.`);
 });
