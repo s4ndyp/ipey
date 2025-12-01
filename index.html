@@ -40,7 +40,6 @@
             <div class="flex items-center gap-3 mb-4 md:mb-0">
                 <div class="relative">
                     <i class="fa-solid fa-network-wired text-green-500 text-3xl"></i>
-                    <!-- Status indicator -->
                     <span id="global-status" class="absolute -top-1 -right-1 flex h-3 w-3">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 hidden"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500 hidden"></span>
@@ -56,7 +55,7 @@
         <!-- Controls Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
             
-            <!-- Handmatig Toevoegen (3 cols) -->
+            <!-- Handmatig Toevoegen -->
             <div class="lg:col-span-3 bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700">
                 <h2 class="text-lg font-semibold mb-3 text-green-400"><i class="fa-solid fa-plus mr-2"></i>Toevoegen</h2>
                 <form id="add-form" class="space-y-2">
@@ -67,7 +66,7 @@
                 </form>
             </div>
 
-            <!-- Scanner & Console (6 cols) -->
+            <!-- Scanner -->
             <div class="lg:col-span-6 bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700 flex flex-col">
                 <div class="flex justify-between items-center mb-3">
                     <h2 class="text-lg font-semibold text-blue-400"><i class="fa-solid fa-radar mr-2"></i>Netwerk Scanner</h2>
@@ -77,7 +76,7 @@
                 <div class="flex gap-2 mb-3 items-end">
                     <div class="flex-1">
                         <label class="text-xs text-gray-400 block mb-1">Netwerk/IP Basis</label>
-                        <input type="text" id="base-ip-input" placeholder="bv. 192.168.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
+                        <input type="text" id="base-ip-input" placeholder="bv. 10.1.2.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
                     </div>
                     <div class="w-24">
                          <label class="text-xs text-gray-400 block mb-1">Bereik</label>
@@ -88,27 +87,23 @@
                     </button>
                 </div>
 
-                <!-- Progress Bar -->
                 <div id="progress-container" class="w-full bg-gray-900 rounded-full h-2.5 mb-3 hidden overflow-hidden">
                     <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full animate-progress" style="width: 50%"></div>
                 </div>
 
-                <!-- Console -->
                 <div class="flex-1 bg-black border border-gray-600 rounded p-2 overflow-y-auto max-h-32 min-h-[80px] console-log text-green-500" id="scan-console">
                     <div class="text-gray-500">System ready. Waiting for command...</div>
                 </div>
             </div>
 
-            <!-- Acties (3 cols) -->
+            <!-- Acties -->
             <div class="lg:col-span-3 bg-gray-800 p-5 rounded-lg shadow-lg border border-gray-700 flex flex-col justify-between">
                 <div>
                     <h2 class="text-lg font-semibold mb-3 text-purple-400"><i class="fa-solid fa-sliders mr-2"></i>Acties</h2>
-                    
-                    <!-- NIEUWE SECTIE: SINGLE PING -->
                     <div class="mb-4 pb-4 border-b border-gray-700">
                         <label class="text-xs text-gray-400 block mb-1">Test enkel IP</label>
                         <div class="flex gap-2">
-                            <input type="text" id="manual-ping-ip" placeholder="192.168.1.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-purple-500 transition">
+                            <input type="text" id="manual-ping-ip" placeholder="10.1.2.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-purple-500 transition">
                             <button onclick="pingManual()" id="btn-manual-ping" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-2 rounded text-sm transition">
                                 <i class="fa-solid fa-bolt"></i>
                             </button>
@@ -130,7 +125,7 @@
             </div>
         </div>
 
-        <!-- Data Tabel -->
+        <!-- Tabel -->
         <div class="bg-gray-800 rounded-lg shadow-lg border border-gray-700 overflow-hidden">
             <div class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
                 <h3 class="text-lg font-semibold text-gray-200">Resultaten</h3>
@@ -148,30 +143,23 @@
                             <th class="p-4 font-semibold text-right">Acties</th>
                         </tr>
                     </thead>
-                    <tbody id="device-list" class="divide-y divide-gray-700 text-gray-300">
-                        <!-- Rows -->
-                    </tbody>
+                    <tbody id="device-list" class="divide-y divide-gray-700 text-gray-300"></tbody>
                 </table>
             </div>
-            
             <div id="empty-state" class="hidden p-8 text-center text-gray-500">
                 <i class="fa-solid fa-server text-4xl mb-3"></i>
                 <p>Geen data. Voeg toe of scan.</p>
             </div>
         </div>
     </div>
-
-    <!-- Toast -->
     <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50"></div>
 
     <script>
-        // --- Config & State ---
         let devices = [];
         let sortCol = 'ip';
         let sortAsc = true;
         const API_BASE = '/api'; 
-        
-        // --- Init ---
+
         document.addEventListener('DOMContentLoaded', () => {
             loadData();
             renderTable();
@@ -181,19 +169,15 @@
         async function checkBackend() {
             const statusEl = document.getElementById('backend-status');
             try {
-                // Test ping naar backend
                 await fetch(`${API_BASE}/ping`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({}) });
                 statusEl.innerText = "Online";
                 statusEl.className = "text-green-500 font-bold";
-                logToConsole("System: Backend verbonden.", "text-green-500");
             } catch (e) {
                 statusEl.innerText = "Offline";
                 statusEl.className = "text-red-500 font-bold";
-                logToConsole("System: Backend onbereikbaar!", "text-red-500");
             }
         }
 
-        // --- Core Functions ---
         function loadData() {
             const stored = localStorage.getItem('network_devices');
             if (stored) devices = JSON.parse(stored);
@@ -206,7 +190,6 @@
 
         function addDevice(ip, hostname, mac) {
             if (!ip) return false;
-            
             const existingIndex = devices.findIndex(d => d.ip === ip);
             const newDevice = {
                 id: existingIndex >= 0 ? devices[existingIndex].id : Date.now() + Math.random(),
@@ -214,15 +197,10 @@
                 hostname: hostname ? hostname.trim() : (existingIndex >= 0 ? devices[existingIndex].hostname : "?"),
                 mac: mac ? formatMac(mac.trim()) : (existingIndex >= 0 ? devices[existingIndex].mac : "Unknown"),
                 lastSeen: new Date().toISOString(),
-                status: 'unknown' // unknown, online, offline
+                status: 'unknown'
             };
-
-            if (existingIndex >= 0) {
-                devices[existingIndex] = newDevice;
-            } else {
-                devices.push(newDevice);
-            }
-
+            if (existingIndex >= 0) devices[existingIndex] = newDevice;
+            else devices.push(newDevice);
             saveData();
             renderTable();
             return true;
@@ -241,40 +219,28 @@
                 devices = [];
                 saveData();
                 renderTable();
-                logToConsole("Database gewist.", "text-yellow-500");
             }
         }
-
-        // --- PING Logic ---
 
         async function pingHost(id, ip) {
             const icon = document.getElementById(`status-icon-${id}`);
             const btnIcon = document.getElementById(`ping-btn-icon-${id}`);
-            
-            // UI Update naar "loading"
             if(icon) icon.className = "fa-solid fa-spinner fa-spin text-yellow-500";
             if(btnIcon) btnIcon.className = "fa-solid fa-spinner fa-spin";
-            
             logToConsole(`Ping: ${ip}...`, "text-gray-400");
-
             try {
                 const res = await fetch(`${API_BASE}/ping`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ip: ip })
                 });
-                
                 const data = await res.json();
-                
-                // Update device state
                 const devIndex = devices.findIndex(d => d.id === id);
                 if (devIndex >= 0) {
                     devices[devIndex].status = data.alive ? 'online' : 'offline';
                     devices[devIndex].latency = data.time;
                     saveData();
                 }
-
-                // UI Update resultaat
                 if (data.alive) {
                     logToConsole(`Ping: ${ip} is ONLINE (${data.time}ms)`, "text-green-400");
                     if(icon) icon.className = "fa-solid fa-circle text-green-500 fade-in";
@@ -282,258 +248,150 @@
                     logToConsole(`Ping: ${ip} is OFFLINE`, "text-red-400");
                     if(icon) icon.className = "fa-regular fa-circle text-red-500 fade-in";
                 }
-
             } catch (err) {
-                logToConsole(`Ping Error: ${ip}`, "text-red-500");
-                if(icon) icon.className = "fa-solid fa-triangle-exclamation text-red-500";
+                logToConsole(`Ping Error`, "text-red-500");
             } finally {
                 if(btnIcon) btnIcon.className = "fa-solid fa-bolt";
-                renderTable(); // Refresh tabel icoontjes
+                renderTable();
             }
         }
 
         async function pingAll() {
-            if(confirm(`Wil je alle ${devices.length} apparaten pingen? Dit kan even duren.`)) {
+            if(confirm(`Alle ${devices.length} apparaten pingen?`)) {
                 logToConsole(`Start Bulk Ping...`, "text-blue-400");
-                for (let d of devices) {
-                    await pingHost(d.id, d.ip); 
-                }
-                logToConsole(`Bulk Ping Voltooid.`, "text-blue-400 font-bold");
+                for (let d of devices) { await pingHost(d.id, d.ip); }
+                logToConsole(`Bulk Ping Klaar.`, "text-blue-400 font-bold");
             }
         }
 
-        // NIEUW: Handmatige enkele Ping
         async function pingManual() {
             const ipInput = document.getElementById('manual-ping-ip');
             const ip = ipInput.value.trim();
             const btnIcon = document.querySelector('#btn-manual-ping i');
-            
-            if (!ip) {
-                showToast("Vul een IP in", "error");
-                return;
-            }
-
+            if (!ip) { showToast("Vul een IP in", "error"); return; }
             const originalClass = btnIcon.className;
             btnIcon.className = "fa-solid fa-spinner fa-spin";
             logToConsole(`Manual Ping: ${ip}...`, "text-gray-400");
-
             try {
-                const res = await fetch(`${API_BASE}/ping`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ip: ip })
-                });
+                const res = await fetch(`${API_BASE}/ping`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ip: ip }) });
                 const data = await res.json();
-
-                if (data.alive) {
-                    logToConsole(`Ping ${ip}: ONLINE (${data.time}ms)`, "text-green-400 font-bold");
-                    showToast(`${ip} is Online!`);
-                } else {
-                    logToConsole(`Ping ${ip}: OFFLINE`, "text-red-400 font-bold");
-                    showToast(`${ip} is Offline`, "error");
-                }
-            } catch (e) {
-                logToConsole(`Ping Error: ${e.message}`, "text-red-500");
-            } finally {
-                btnIcon.className = originalClass;
-            }
+                if (data.alive) { logToConsole(`Ping ${ip}: ONLINE (${data.time}ms)`, "text-green-400 font-bold"); showToast("Online!"); }
+                else { logToConsole(`Ping ${ip}: OFFLINE`, "text-red-400 font-bold"); showToast("Offline", "error"); }
+            } catch (e) { logToConsole(`Error`, "text-red-500"); } finally { btnIcon.className = originalClass; }
         }
 
-        // --- SCAN Logic ---
-
+        // --- SCAN LOGIC ---
         document.getElementById('btn-scan').addEventListener('click', async () => {
             const btn = document.getElementById('btn-scan');
-            
-            // Haal ruwe waarden op
+            if (btn.disabled) return; // Prevent double clicks
+
             let baseIP = document.getElementById('base-ip-input').value.trim();
             const rangeSuffix = document.getElementById('range-suffix-input').value.trim();
             
-            // Split op punten
             const parts = baseIP.split('.');
-            
-            // Als de gebruiker 4 delen invult (bv 10.1.2.1) EN een bereik (1-20)
             if (parts.length === 4 && rangeSuffix && !rangeSuffix.startsWith('/')) {
                  baseIP = parts.slice(0, 3).join('.');
-                 logToConsole(`Correctie: Base IP aangepast naar ${baseIP}`, "text-yellow-500 italic");
+                 logToConsole(`Correctie: Base IP -> ${baseIP}`, "text-yellow-500 italic");
             }
 
-            // Subnet bouwen
             let subnet = '';
-            if (rangeSuffix.startsWith('/') || rangeSuffix.includes('.')) {
-                subnet = baseIP + rangeSuffix;
-            } else if (baseIP && rangeSuffix) {
-                subnet = baseIP + '.' + rangeSuffix;
-            } else if (baseIP && !rangeSuffix) {
-                subnet = baseIP;
-            } else {
-                subnet = ''; // Lokaal
-            }
+            if (rangeSuffix.startsWith('/') || rangeSuffix.includes('.')) subnet = baseIP + rangeSuffix;
+            else if (baseIP && rangeSuffix) subnet = baseIP + '.' + rangeSuffix; // 10.1.2.1-10 format
+            else if (baseIP && !rangeSuffix) subnet = baseIP;
+            else subnet = ''; 
 
             const progressBar = document.getElementById('progress-container');
-            const log = document.getElementById('scan-console');
-
+            
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-not-allowed');
             progressBar.classList.remove('hidden');
             
             logToConsole("--------------------------------", "text-gray-600");
-            logToConsole(`Scan start: ${subnet || 'Auto (Lokaal)'}`, "text-white");
-            logToConsole("Backend aanroepen...", "text-gray-400");
+            logToConsole(`Scan start: ${subnet}`, "text-white");
 
             let url = `${API_BASE}/scan`;
             if (subnet) url += `?subnet=${encodeURIComponent(subnet)}`;
 
             try {
                 const fakeUpdates = setInterval(() => {
-                    const msgs = ["ARP tabellen lezen...", "MAC adressen resolven...", "Data normaliseren..."];
-                    const randomMsg = msgs[Math.floor(Math.random() * msgs.length)];
-                    logToConsole(randomMsg, "text-gray-500 italic");
-                }, 800);
+                    const msgs = ["Pinging hosts...", "Reading ARP table...", "Resolving MACs..."];
+                    logToConsole(msgs[Math.floor(Math.random() * msgs.length)], "text-gray-500 italic");
+                }, 1000);
 
                 const response = await fetch(url);
                 clearInterval(fakeUpdates);
 
                 if (!response.ok) throw new Error(response.statusText);
-
                 const data = await response.json();
                 
                 if (data.success) {
-                    logToConsole(`Scan succesvol! ${data.devices.length} resultaten.`, "text-green-400 font-bold");
-                    
-                    data.devices.forEach(d => {
-                        addDevice(d.ip, d.name, d.mac);
-                    });
-                    
-                    showToast(`${data.devices.length} apparaten gevonden`);
+                    logToConsole(`Scan klaar! ${data.devices.length} resultaten.`, "text-green-400 font-bold");
+                    data.devices.forEach(d => addDevice(d.ip, d.name, d.mac));
+                    showToast(`${data.devices.length} gevonden`);
                 } else {
                     throw new Error(data.message);
                 }
-
             } catch (error) {
                 logToConsole(`Scan Fout: ${error.message}`, "text-red-500 font-bold");
-                showToast("Fout tijdens scannen", "error");
             } finally {
                 btn.disabled = false;
                 btn.classList.remove('opacity-50', 'cursor-not-allowed');
                 progressBar.classList.add('hidden');
-                logToConsole("Klaar.", "text-gray-500");
             }
         });
-
-        // --- Helpers ---
 
         function renderTable() {
             const tbody = document.getElementById('device-list');
             const search = document.getElementById('search-input').value.toLowerCase();
             const emptyState = document.getElementById('empty-state');
-            
             tbody.innerHTML = '';
-
-            let filtered = devices.filter(d => 
-                d.ip.includes(search) || 
-                d.hostname.toLowerCase().includes(search) || 
-                d.mac.toLowerCase().includes(search)
-            );
-
-            // Sort
+            let filtered = devices.filter(d => d.ip.includes(search) || d.hostname.toLowerCase().includes(search) || d.mac.toLowerCase().includes(search));
             filtered.sort((a, b) => {
-                let valA = a[sortCol];
-                let valB = b[sortCol];
+                let valA = a[sortCol]; let valB = b[sortCol];
                 if (sortCol === 'ip') return sortAsc ? compareIPs(valA, valB) : compareIPs(valB, valA);
                 if (valA < valB) return sortAsc ? -1 : 1;
                 if (valA > valB) return sortAsc ? 1 : -1;
                 return 0;
             });
-
-            if (filtered.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
+            if (filtered.length === 0) emptyState.classList.remove('hidden');
+            else {
                 emptyState.classList.add('hidden');
                 filtered.forEach(device => {
-                    let statusIcon = '<i class="fa-regular fa-circle text-gray-600" title="Onbekend"></i>';
-                    if (device.status === 'online') statusIcon = '<i class="fa-solid fa-circle text-green-500 fade-in" title="Online"></i>';
-                    if (device.status === 'offline') statusIcon = '<i class="fa-regular fa-circle text-red-500 fade-in" title="Offline"></i>';
-
+                    let statusIcon = '<i class="fa-regular fa-circle text-gray-600"></i>';
+                    if (device.status === 'online') statusIcon = '<i class="fa-solid fa-circle text-green-500"></i>';
+                    if (device.status === 'offline') statusIcon = '<i class="fa-regular fa-circle text-red-500"></i>';
                     const tr = document.createElement('tr');
                     tr.id = `row-${device.id}`;
-                    tr.className = "hover:bg-gray-700 transition duration-150 border-b border-gray-700 group";
+                    tr.className = "hover:bg-gray-700 transition border-b border-gray-700";
                     tr.innerHTML = `
                         <td class="p-4 text-center text-xs" id="status-icon-${device.id}">${statusIcon}</td>
                         <td class="p-4 text-green-400 font-mono">${device.ip}</td>
-                        <td class="p-4 text-white font-medium">
-                            ${device.hostname}
-                            ${device.latency ? `<span class="ml-2 text-xs text-gray-500">(${device.latency}ms)</span>` : ''}
-                        </td>
+                        <td class="p-4 text-white font-medium">${device.hostname} ${device.latency ? `<span class="text-xs text-gray-500">(${device.latency}ms)</span>` : ''}</td>
                         <td class="p-4 text-gray-400 font-mono text-sm">${device.mac}</td>
                         <td class="p-4 text-right flex justify-end gap-2">
-                            <button onclick="pingHost(${device.id}, '${device.ip}')" class="bg-gray-600 hover:bg-yellow-600 text-white p-2 rounded text-xs transition" title="Ping nu">
-                                <i id="ping-btn-icon-${device.id}" class="fa-solid fa-bolt"></i>
-                            </button>
-                            <button onclick="deleteDevice(${device.id})" class="bg-gray-600 hover:bg-red-600 text-white p-2 rounded text-xs transition" title="Verwijder">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
+                            <button onclick="pingHost(${device.id}, '${device.ip}')" class="bg-gray-600 hover:bg-yellow-600 text-white p-2 rounded text-xs transition"><i id="ping-btn-icon-${device.id}" class="fa-solid fa-bolt"></i></button>
+                            <button onclick="deleteDevice(${device.id})" class="bg-gray-600 hover:bg-red-600 text-white p-2 rounded text-xs transition"><i class="fa-solid fa-trash"></i></button>
+                        </td>`;
                     tbody.appendChild(tr);
                 });
             }
             updateCount();
         }
-
-        function logToConsole(msg, classes="text-gray-300") {
-            const consoleEl = document.getElementById('scan-console');
-            const line = document.createElement('div');
-            const time = new Date().toLocaleTimeString('nl-NL', {hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
-            line.className = `${classes} mb-1`;
-            line.innerHTML = `<span class="opacity-50 mr-2">[${time}]</span> ${msg}`;
-            consoleEl.appendChild(line);
-            consoleEl.scrollTop = consoleEl.scrollHeight;
+        function logToConsole(msg, cls="text-gray-300") {
+            const el = document.getElementById('scan-console');
+            const d = document.createElement('div');
+            d.className = `${cls} mb-1`;
+            d.innerHTML = `<span class="opacity-50 mr-2">[${new Date().toLocaleTimeString('nl-NL')}]</span> ${msg}`;
+            el.appendChild(d); el.scrollTop = el.scrollHeight;
         }
-
         function updateCount() { document.getElementById('device-count').innerText = devices.length; }
-        
-        document.getElementById('add-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const ip = document.getElementById('input-ip').value;
-            const hostname = document.getElementById('input-hostname').value;
-            const mac = document.getElementById('input-mac').value;
-            if(addDevice(ip, hostname, mac)) { e.target.reset(); showToast("Opgeslagen"); }
-        });
-        
+        document.getElementById('add-form').addEventListener('submit', (e) => { e.preventDefault(); addDevice(document.getElementById('input-ip').value, document.getElementById('input-hostname').value, document.getElementById('input-mac').value); e.target.reset(); });
         document.getElementById('search-input').addEventListener('keyup', renderTable);
-        
-        function sortTable(col) {
-            if (sortCol === col) sortAsc = !sortAsc;
-            else { sortCol = col; sortAsc = true; }
-            renderTable();
-        }
-
-        function compareIPs(a, b) {
-            const numA = a.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0;
-            const numB = b.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0;
-            return numA - numB;
-        }
-
-        function formatMac(mac) {
-            let clean = mac.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
-            return clean.match(/.{1,2}/g)?.join(':') || mac;
-        }
-
-        function showToast(msg, type="success") {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            toast.className = `fixed bottom-5 right-5 px-6 py-3 rounded shadow-lg transform transition-all duration-300 z-50 ${type === 'error' ? 'bg-red-600' : 'bg-green-600'} text-white translate-y-0 opacity-100`;
-            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
-        }
-
-        function exportCSV() {
-            let csv = "data:text/csv;charset=utf-8,IP,Hostname,MAC,Status,Latency\n";
-            devices.forEach(d => csv += `${d.ip},${d.hostname},${d.mac},${d.status},${d.latency || ''}\n`);
-            const link = document.createElement("a");
-            link.href = encodeURI(csv);
-            link.download = "network_devices.csv";
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        }
+        function sortTable(col) { if (sortCol === col) sortAsc = !sortAsc; else { sortCol = col; sortAsc = true; } renderTable(); }
+        function compareIPs(a, b) { return (a.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0) - (b.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0); }
+        function formatMac(mac) { return mac.replace(/[^0-9A-Fa-f]/g, '').toUpperCase().match(/.{1,2}/g)?.join(':') || mac; }
+        function showToast(msg, type="success") { const t = document.getElementById('toast'); t.innerText = msg; t.className = `fixed bottom-5 right-5 px-6 py-3 rounded shadow-lg transition-all z-50 ${type==='error'?'bg-red-600':'bg-green-600'} text-white opacity-100`; setTimeout(()=>t.classList.add('opacity-0', 'translate-y-20'), 3000); }
+        function exportCSV() { let csv="IP,Hostname,MAC,Status\n"; devices.forEach(d=>csv+=`${d.ip},${d.hostname},${d.mac},${d.status}\n`); const a=document.createElement("a"); a.href=encodeURI("data:text/csv;charset=utf-8,"+csv); a.download="devices.csv"; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
     </script>
 </body>
 </html>
