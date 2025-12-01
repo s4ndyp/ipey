@@ -17,7 +17,7 @@ function parseIPRange(rangeStr) {
         const parts = rangeStr.split('-');
         const startIP = parts[0];
         const endPart = parts[1];
-        const startOctets = startIP.split('.').map(Number);
+        const startOctets = startIP.split('.map(Number);
         
         let endLastOctet = endPart.includes('.') ? parseInt(endPart.split('.')[3]) : parseInt(endPart);
 
@@ -31,7 +31,6 @@ function parseIPRange(rangeStr) {
 }
 
 // --- Helper: Handmatige ARP Lezer (Linux/Docker) ---
-// Deze functie leest direct de /proc/net/arp file en lost het parser probleem op
 function getArpTable(logFunction) {
     const arpEntries = [];
     try {
@@ -48,11 +47,10 @@ function getArpTable(logFunction) {
             
             if (cols.length >= 4) {
                 const ip = cols[0];
-                const mac = cols[3]; // Dit is de kolom die de MAC bevat
+                const mac = cols[3]; 
 
                 if (mac && mac !== '00:00:00:00:00:00') {
                     arpEntries.push({ ip, mac });
-                    // NIEUW: Log de succesvolle parse naar de frontend console
                     logFunction(`[DEBUG: ARP OK] IP: ${ip}, MAC: ${mac}`); 
                 } else {
                     logFunction(`[DEBUG: ARP SKIP] IP: ${ip} MAC is leeg of 00:00:00...`);
@@ -93,23 +91,30 @@ app.get('/api/scan', async (req, res) => {
             );
 
             const pingResults = await Promise.all(pingPromises);
-            const aliveHosts = pingResults.filter(r => r.alive);
+            const aliveHosts = pingResults.filter(r => r.alive).map(r => r.host); // Alleen IP-adressen van online hosts
             log(`Ping voltooid. ${aliveHosts.length} hosts reageerden.`);
 
             // 2. Lees ARP (met onze eigen functie, inclusief logging)
             log(`Uitlezen ARP tabel (/proc/net/arp)...`);
-            const arpTable = getArpTable(log); // Geef de log functie mee
-            log(`${arpTable.length} MAC-adressen gevonden in ARP cache.`);
+            const arpTableRaw = getArpTable(log); 
+            log(`${arpTableRaw.length} MAC-adressen gevonden in ARP cache (ruwe data).`);
 
-            // 3. Match en combineer
-            results = aliveHosts.map(host => {
-                const arpEntry = arpTable.find(a => a.ip === host.host);
+            // 3. Filter ARP tabel en match met gescande IP's
+            const arpTableFiltered = arpTableRaw.filter(entry => 
+                aliveHosts.includes(entry.ip)
+            );
+            log(`ARP-cache gefilterd: ${arpTableFiltered.length} matches met gescande IP's.`);
+
+
+            // 4. Combineer data
+            results = aliveHosts.map(hostIP => {
+                const arpEntry = arpTableFiltered.find(a => a.ip === hostIP);
                 
-                // Hostname blijft 'Unknown' (wegens Docker/RDNS beperkingen)
+                // Hostname blijft 'Unknown' 
                 let hostname = 'Unknown';
                 
                 return {
-                    ip: host.host,
+                    ip: hostIP,
                     name: hostname,
                     mac: arpEntry ? arpEntry.mac : '??:??:??:??:??:??'
                 };
