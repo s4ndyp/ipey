@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Address Manager</title>
+    <!-- Tailwind CSS voor styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome voor iconen -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Custom scrollbar voor een strakke look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; 
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-center border-b border-gray-700 pb-4">
+            <div class="flex items-center gap-3 mb-4 md:mb-0">
+                <i class="fa-solid fa-network-wired text-green-500 text-3xl"></i>
+                <h1 class="text-3xl font-bold tracking-wide">IP Manager</h1>
+            </div>
+            <div class="text-sm text-gray-400">
+                <span id="device-count">0</span> apparaten opgeslagen
+            </div>
+        </header>
+
+        <!-- Controls Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            
+            <!-- Handmatig Toevoegen -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-green-400"><i class="fa-solid fa-plus mr-2"></i>Toevoegen</h2>
+                <form id="add-form" class="space-y-3">
+                    <div>
+                        <input type="text" id="input-ip" placeholder="IP Adres (bv. 192.168.1.10)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-green-500 transition">
+                    </div>
+                    <div>
+                        <input type="text" id="input-hostname" placeholder="Hostname (bv. server-01)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-green-500 transition">
+                    </div>
+                    <div>
+                        <input type="text" id="input-mac" placeholder="MAC Adres (bv. AA:BB:CC:DD:EE:FF)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-green-500 transition">
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+                        Opslaan
+                    </button>
+                </form>
+            </div>
+
+            <!-- Subnet Scanner (Simulatie) -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 relative overflow-hidden">
+                <div class="absolute top-0 right-0 bg-yellow-600 text-xs px-2 py-1 rounded-bl">Simulatie</div>
+                <h2 class="text-xl font-semibold mb-4 text-blue-400"><i class="fa-solid fa-radar mr-2"></i>Subnet Scan</h2>
+                <p class="text-gray-400 text-sm mb-3">Vul de eerste 3 delen in (bv. 192.168.1). Dit genereert testdata.</p>
+                <div class="space-y-3">
+                    <input type="text" id="subnet-input" value="192.168.178" placeholder="bv. 192.168.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-blue-500 transition">
+                    <button id="btn-scan" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200 flex justify-center items-center gap-2">
+                        <span>Start Scan</span>
+                        <i class="fa-solid fa-spinner fa-spin hidden" id="scan-spinner"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Acties & Statistieken -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold mb-4 text-purple-400"><i class="fa-solid fa-sliders mr-2"></i>Beheer</h2>
+                    <p class="text-gray-400 text-sm mb-4">Beheer je lokale dataset.</p>
+                </div>
+                <div class="space-y-3">
+                    <button onclick="clearData()" class="w-full bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 font-bold py-2 px-4 rounded transition duration-200">
+                        <i class="fa-solid fa-trash mr-2"></i>Alles Verwijderen
+                    </button>
+                    <button onclick="exportCSV()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600 font-bold py-2 px-4 rounded transition duration-200">
+                        <i class="fa-solid fa-download mr-2"></i>Export CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Tabel -->
+        <div class="bg-gray-800 rounded-lg shadow-lg border border-gray-700 overflow-hidden">
+            <div class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-200">Netwerk Overzicht</h3>
+                <input type="text" id="search-input" placeholder="Zoeken..." class="bg-gray-900 border border-gray-600 rounded px-3 py-1 text-sm focus:outline-none focus:border-blue-500">
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-900 text-gray-400 text-sm uppercase tracking-wider">
+                            <th class="p-4 font-semibold cursor-pointer hover:text-white select-none" onclick="sortTable('ip')">
+                                IP Adres <i class="fa-solid fa-sort ml-1"></i>
+                            </th>
+                            <th class="p-4 font-semibold cursor-pointer hover:text-white select-none" onclick="sortTable('hostname')">
+                                Hostname <i class="fa-solid fa-sort ml-1"></i>
+                            </th>
+                            <th class="p-4 font-semibold cursor-pointer hover:text-white select-none" onclick="sortTable('mac')">
+                                MAC Adres <i class="fa-solid fa-sort ml-1"></i>
+                            </th>
+                            <th class="p-4 font-semibold text-right">Acties</th>
+                        </tr>
+                    </thead>
+                    <tbody id="device-list" class="divide-y divide-gray-700 text-gray-300">
+                        <!-- Rows worden hier gegenereerd -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="empty-state" class="hidden p-8 text-center text-gray-500">
+                <i class="fa-solid fa-server text-4xl mb-3"></i>
+                <p>Geen apparaten gevonden. Voeg er een toe of start een scan.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-6 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        Actie succesvol!
+    </div>
+
+    <script>
+        // --- State Management ---
+        let devices = [];
+        let sortCol = 'ip';
+        let sortAsc = true;
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            renderTable();
+        });
+
+        // --- Core Functions ---
+
+        function loadData() {
+            const stored = localStorage.getItem('network_devices');
+            if (stored) {
+                devices = JSON.parse(stored);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('network_devices', JSON.stringify(devices));
+            updateCount();
+        }
+
+        function addDevice(ip, hostname, mac) {
+            // Validatie
+            if (!ip) {
+                showToast("IP Adres is verplicht!", "error");
+                return false;
+            }
+
+            // Check duplicate IP
+            if (devices.some(d => d.ip === ip)) {
+                if(!confirm(`IP ${ip} bestaat al. Wil je deze overschrijven?`)) return false;
+                devices = devices.filter(d => d.ip !== ip);
+            }
+
+            devices.push({
+                id: Date.now() + Math.random(),
+                ip: ip.trim(),
+                hostname: hostname ? hostname.trim() : "Unknown",
+                mac: mac ? formatMac(mac.trim()) : "00:00:00:00:00:00",
+                addedAt: new Date().toISOString()
+            });
+
+            saveData();
+            renderTable();
+            return true;
+        }
+
+        function deleteDevice(id) {
+            if(confirm("Weet je zeker dat je dit apparaat wilt verwijderen?")) {
+                devices = devices.filter(d => d.id !== id);
+                saveData();
+                renderTable();
+                showToast("Apparaat verwijderd");
+            }
+        }
+
+        function clearData() {
+            if(confirm("WEET JE HET ZEKER? Alle data wordt verwijderd.")) {
+                devices = [];
+                saveData();
+                renderTable();
+                showToast("Alle data gewist");
+            }
+        }
+
+        // --- UI Rendering ---
+
+        function renderTable() {
+            const tbody = document.getElementById('device-list');
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const emptyState = document.getElementById('empty-state');
+            
+            tbody.innerHTML = '';
+
+            // Filteren
+            let filtered = devices.filter(d => 
+                d.ip.includes(search) || 
+                d.hostname.toLowerCase().includes(search) || 
+                d.mac.toLowerCase().includes(search)
+            );
+
+            // Sorteren
+            filtered.sort((a, b) => {
+                let valA = a[sortCol];
+                let valB = b[sortCol];
+
+                // Speciale IP sortering (Natuurlijke sortering)
+                if (sortCol === 'ip') {
+                    return sortAsc ? compareIPs(valA, valB) : compareIPs(valB, valA);
+                }
+
+                if (valA < valB) return sortAsc ? -1 : 1;
+                if (valA > valB) return sortAsc ? 1 : -1;
+                return 0;
+            });
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                
+                filtered.forEach(device => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-700 transition duration-150 fade-in group";
+                    tr.innerHTML = `
+                        <td class="p-4 text-green-400 font-mono">${device.ip}</td>
+                        <td class="p-4 text-white font-medium">${device.hostname}</td>
+                        <td class="p-4 text-gray-400 font-mono text-sm">${device.mac}</td>
+                        <td class="p-4 text-right">
+                            <button onclick="deleteDevice(${device.id})" class="text-gray-500 hover:text-red-400 transition">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            updateCount();
+        }
+
+        function updateCount() {
+            document.getElementById('device-count').innerText = devices.length;
+        }
+
+        // --- Scan Simulatie Logic ---
+
+        document.getElementById('btn-scan').addEventListener('click', () => {
+            const subnetInput = document.getElementById('subnet-input').value.trim();
+            const parts = subnetInput.split('.');
+            
+            if (parts.length < 3) {
+                showToast("Ongeldig subnet formaat (bv. 192.168.1)", "error");
+                return;
+            }
+
+            const baseIP = parts.slice(0, 3).join('.');
+            const btn = document.getElementById('btn-scan');
+            const spinner = document.getElementById('scan-spinner');
+            
+            // UI State change
+            btn.disabled = true;
+            btn.classList.add('opacity-75');
+            spinner.classList.remove('hidden');
+
+            // Simuleer vertraging
+            setTimeout(() => {
+                // Genereer 5 tot 15 random devices
+                const count = Math.floor(Math.random() * 10) + 5;
+                let addedCount = 0;
+
+                for(let i=0; i < count; i++) {
+                    const lastOctet = Math.floor(Math.random() * 254) + 1;
+                    const ip = `${baseIP}.${lastOctet}`;
+                    
+                    // Random Hostnames
+                    const types = ['Desktop', 'Laptop', 'iPhone', 'Android', 'Printer', 'SmartTV'];
+                    const type = types[Math.floor(Math.random() * types.length)];
+                    const hostname = `${type}-${Math.floor(Math.random()*999)}`;
+                    
+                    // Genereer MAC
+                    const mac = "XX:XX:XX:XX:XX:XX".replace(/X/g, function() {
+                        return "0123456789ABCDEF".charAt(Math.floor(Math.random() * 16));
+                    });
+
+                    // Check of IP al bestaat in huidige lijst
+                    if (!devices.some(d => d.ip === ip)) {
+                        devices.push({
+                            id: Date.now() + Math.random(),
+                            ip: ip,
+                            hostname: hostname,
+                            mac: mac,
+                            addedAt: new Date().toISOString()
+                        });
+                        addedCount++;
+                    }
+                }
+
+                saveData();
+                renderTable();
+                
+                // Reset UI
+                btn.disabled = false;
+                btn.classList.remove('opacity-75');
+                spinner.classList.add('hidden');
+                
+                showToast(`${addedCount} apparaten gevonden en toegevoegd!`);
+
+            }, 1500); // 1.5 seconde fake scan tijd
+        });
+
+        // --- Helpers ---
+
+        // Form Submit
+        document.getElementById('add-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const ip = document.getElementById('input-ip').value;
+            const hostname = document.getElementById('input-hostname').value;
+            const mac = document.getElementById('input-mac').value;
+
+            if(addDevice(ip, hostname, mac)) {
+                e.target.reset();
+                showToast("Apparaat toegevoegd");
+            }
+        });
+
+        // Search Input
+        document.getElementById('search-input').addEventListener('keyup', renderTable);
+
+        // Sorting Logic
+        function sortTable(col) {
+            if (sortCol === col) {
+                sortAsc = !sortAsc;
+            } else {
+                sortCol = col;
+                sortAsc = true;
+            }
+            renderTable();
+        }
+
+        // IP Vergelijker (Natuurlijke sortering: 2 < 10)
+        function compareIPs(a, b) {
+            const numA = ipToNumber(a);
+            const numB = ipToNumber(b);
+            return numA - numB;
+        }
+
+        function ipToNumber(ip) {
+            return ip.split('.').reduce((acc, octet) => {
+                return (acc << 8) + parseInt(octet, 10);
+            }, 0) >>> 0;
+        }
+
+        // MAC Formatter
+        function formatMac(mac) {
+            // Verwijder alles behalve hex karakters
+            let clean = mac.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+            // Voeg dubbele punten toe elke 2 chars
+            return clean.match(/.{1,2}/g)?.join(':') || mac;
+        }
+
+        // Toast Notification
+        function showToast(msg, type="success") {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.className = `fixed bottom-5 right-5 px-6 py-3 rounded shadow-lg transform transition-all duration-300 z-50 ${type === 'error' ? 'bg-red-600' : 'bg-green-600'} text-white translate-y-0 opacity-100`;
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // CSV Export
+        function exportCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "IP,Hostname,MAC\n";
+            
+            devices.forEach(d => {
+                csvContent += `${d.ip},${d.hostname},${d.mac}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "network_devices.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+    </script>
+</body>
+</html>
