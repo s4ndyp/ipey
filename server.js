@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const find = require('local-devices');
 const ping = require('ping');
+const fs = require('fs'); // Nodig om direct ARP tabel te lezen
 
 const app = express();
 const PORT = 3000;
@@ -9,28 +9,18 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Helper: Maak een lijst van IP's uit een range string
-// Ondersteunt formaten zoals "192.168.1.1-50" en "192.168.1.1-192.168.1.50"
+// --- Helper: IP Range Parser ---
 function parseIPRange(rangeStr) {
     const ips = [];
     try {
         if (!rangeStr.includes('-')) return [rangeStr];
-
         const parts = rangeStr.split('-');
         const startIP = parts[0];
         const endPart = parts[1];
-
         const startOctets = startIP.split('.').map(Number);
         
-        // Bepaal eindnummer (handelt '...1.1-50' en '...1.1-192.168.1.50' af)
-        let endLastOctet = 0;
-        if (endPart.includes('.')) {
-            endLastOctet = parseInt(endPart.split('.')[3]);
-        } else {
-            endLastOctet = parseInt(endPart);
-        }
+        let endLastOctet = endPart.includes('.') ? parseInt(endPart.split('.')[3]) : parseInt(endPart);
 
-        // Genereer IP lijst (alleen voor laatste octet ranges voor nu)
         for (let i = startOctets[3]; i <= endLastOctet; i++) {
             ips.push(`${startOctets[0]}.${startOctets[1]}.${startOctets[2]}.${i}`);
         }
@@ -40,70 +30,110 @@ function parseIPRange(rangeStr) {
     return ips;
 }
 
+// --- Helper: Handmatige ARP Lezer (Linux/Docker) ---
+// Dit lost het probleem op dat 'local-devices' soms faalt in containers.
+function getArpTable() {
+    const arpEntries = [];
+    try {
+        // Lees direct de kernel ARP tabel
+        const fileContent = fs.readFileSync('/proc/net/arp', 'utf8');
+        const lines = fileContent.split('\n');
+
+        // Sla header over (regel 0)
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Regex om IP en MAC te pakken. 
+            // Formaat: IP address (0) | HW type (1) | Flags (2) | HW address (3) ...
+            const cols = line.split(/\s+/);
+            if (cols.length >= 4) {
+                const ip = cols[0];
+                const mac = cols[3];
+                // Filter incomplete entries (00:00:00...)
+                if (mac !== '00:00:00:00:00:00') {
+                    arpEntries.push({ ip, mac });
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Kan /proc/net/arp niet lezen:", e);
+    }
+    return arpEntries;
+}
+
 // --- API: SCAN ---
 app.get('/api/scan', async (req, res) => {
+    // We houden een logboek bij om terug te sturen naar de frontend
+    const sessionLogs = [];
+    function log(msg) {
+        console.log(msg); // Toon in Docker logs
+        sessionLogs.push(`[Server] ${msg}`); // Voeg toe aan response
+    }
+
     try {
         const scanRange = req.query.subnet;
-        console.log(`[SCAN] Start: ${scanRange || 'Auto'}`);
+        log(`Scan verzoek voor: ${scanRange || 'Auto'}`);
 
         let results = [];
 
         if (scanRange && scanRange.includes('-')) {
-            // --- SNELLE MODUS: Parallel Pingen ---
             const ipList = parseIPRange(scanRange);
-            console.log(`[SCAN] ${ipList.length} IP's pingen...`);
+            log(`Range berekend: ${ipList.length} adressen.`);
+            log(`Starten van parallelle ping sweep...`);
 
-            // 1. Ping alles tegelijk (Promise.all) voor maximale snelheid
-            // We pingen met een korte timeout (1s) omdat we er veel tegelijk doen.
-            // '-c 1' zorgt dat er maar 1 packet verstuurd wordt.
+            // 1. Ping
             const pingPromises = ipList.map(ip => 
-                ping.promise.probe(ip, { timeout: 1, extra: ['-c', '1'] })
+                ping.promise.probe(ip, { timeout: 1.5, extra: ['-c', '1'] })
             );
 
             const pingResults = await Promise.all(pingPromises);
-            
-            // Filter alleen de apparaten die online zijn
             const aliveHosts = pingResults.filter(r => r.alive);
-            console.log(`[SCAN] Ping klaar. ${aliveHosts.length} hosts online.`);
+            log(`Ping voltooid. ${aliveHosts.length} hosts reageerden.`);
 
-            // 2. Haal ARP data op (nu de ARP cache gevuld is door de pings)
-            // Dit koppelt MAC adressen aan de gevonden IP's
-            const arpTable = await find();
+            // 2. Lees ARP (Nu met onze eigen robuuste functie)
+            log(`Uitlezen ARP tabel (/proc/net/arp)...`);
+            const arpTable = getArpTable();
+            log(`${arpTable.length} items in ARP cache gevonden.`);
 
-            // 3. Combineer data
+            // 3. Match
             results = aliveHosts.map(host => {
-                // Zoek MAC in ARP tabel
                 const arpEntry = arpTable.find(a => a.ip === host.host);
+                
+                // Hostname resolutie is lastig in Docker zonder DNS setup.
+                // We geven nu een standaard naam terug of proberen te kijken of 'ping' iets teruggaf.
+                let hostname = 'Unknown';
+                if (host.host === '127.0.0.1') hostname = 'localhost';
+                
                 return {
                     ip: host.host,
-                    // Gebruik ARP naam of 'Unknown'
-                    name: arpEntry ? arpEntry.name : 'Unknown', 
-                    // Gebruik ARP mac of een placeholder zodat hij tenminste in de lijst komt
-                    mac: arpEntry ? arpEntry.mac : '??:??:??:??:??:??' 
+                    name: hostname,
+                    mac: arpEntry ? arpEntry.mac : '??:??:??:??:??:??'
                 };
             });
 
         } else {
-            // --- AUTO MODUS (local-devices standaard) ---
-            // Voor als er geen specifieke range wordt opgegeven
-            results = await find(scanRange || null);
+            // Auto modus blijft bestaan voor backward compatibility
+            log(`Geen range opgegeven, fallback modus.`);
+            const find = require('local-devices');
+            results = await find();
         }
 
-        console.log(`[SCAN] Klaar. ${results.length} resultaten verstuurd.`);
+        log(`Scan sessie afgerond. ${results.length} resultaten.`);
         
         res.json({
             success: true,
+            logs: sessionLogs, // We sturen de logs mee terug!
             devices: results
         });
 
     } catch (error) {
-        console.error('[SCAN] Error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        log(`FATALE FOUT: ${error.message}`);
+        res.status(500).json({ success: false, logs: sessionLogs, message: error.message });
     }
 });
 
 // --- API: PING ---
-// Endpoint voor het pingen van een enkel IP adres
 app.post('/api/ping', async (req, res) => {
     const { ip } = req.body;
     if (!ip) return res.status(400).json({ success: false });
