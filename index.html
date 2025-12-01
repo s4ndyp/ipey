@@ -76,7 +76,7 @@
                 <div class="flex gap-2 mb-3 items-end">
                     <div class="flex-1">
                         <label class="text-xs text-gray-400 block mb-1">Netwerk/IP Basis</label>
-                        <input type="text" id="base-ip-input" placeholder="bv. 10.1.2.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
+                        <input type="text" id="base-ip-input" placeholder="bv. 192.168.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-blue-500 transition">
                     </div>
                     <div class="w-24">
                          <label class="text-xs text-gray-400 block mb-1">Bereik</label>
@@ -103,7 +103,7 @@
                     <div class="mb-4 pb-4 border-b border-gray-700">
                         <label class="text-xs text-gray-400 block mb-1">Test enkel IP</label>
                         <div class="flex gap-2">
-                            <input type="text" id="manual-ping-ip" placeholder="10.1.2.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-purple-500 transition">
+                            <input type="text" id="manual-ping-ip" placeholder="192.168.1.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white focus:border-purple-500 transition">
                             <button onclick="pingManual()" id="btn-manual-ping" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-2 rounded text-sm transition">
                                 <i class="fa-solid fa-bolt"></i>
                             </button>
@@ -313,16 +313,23 @@
             if (subnet) url += `?subnet=${encodeURIComponent(subnet)}`;
 
             try {
-                // VERWIJDERD: De fake setInterval update
-                logToConsole("Bezig met pingen & scannen...", "text-gray-400");
+                // GEEN fake logs meer, we wachten op de server response
+                logToConsole("Bezig met pingen & ARP check...", "text-gray-400 italic");
 
                 const response = await fetch(url);
 
                 if (!response.ok) throw new Error(response.statusText);
                 const data = await response.json();
                 
+                // --- NIEUW: Toon server logs in de console ---
+                if (data.logs && Array.isArray(data.logs)) {
+                    data.logs.forEach(logLine => {
+                         logToConsole(logLine, "text-gray-400");
+                    });
+                }
+                
                 if (data.success) {
-                    logToConsole(`Scan klaar! ${data.devices.length} resultaten.`, "text-green-400 font-bold");
+                    logToConsole(`Resultaat: ${data.devices.length} apparaten.`, "text-green-400 font-bold");
                     data.devices.forEach(d => addDevice(d.ip, d.name, d.mac));
                     showToast(`${data.devices.length} gevonden`);
                 } else {
