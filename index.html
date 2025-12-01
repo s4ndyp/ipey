@@ -71,17 +71,20 @@
                 </form>
             </div>
 
-            <!-- Subnet Scanner (Simulatie) -->
+            <!-- Subnet Scanner (Live) -->
             <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 relative overflow-hidden">
-                <div class="absolute top-0 right-0 bg-yellow-600 text-xs px-2 py-1 rounded-bl">Simulatie</div>
-                <h2 class="text-xl font-semibold mb-4 text-blue-400"><i class="fa-solid fa-radar mr-2"></i>Subnet Scan</h2>
-                <p class="text-gray-400 text-sm mb-3">Vul de eerste 3 delen in (bv. 192.168.1). Dit genereert testdata.</p>
+                <div class="absolute top-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded-bl font-bold">LIVE SCAN</div>
+                <h2 class="text-xl font-semibold mb-4 text-blue-400"><i class="fa-solid fa-radar mr-2"></i>Netwerk Scan</h2>
+                <p class="text-gray-400 text-sm mb-3">Scant het lokale netwerk via de Docker backend.</p>
                 <div class="space-y-3">
-                    <input type="text" id="subnet-input" value="192.168.178" placeholder="bv. 192.168.1" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-blue-500 transition">
+                    <input type="text" id="subnet-input" placeholder="Huidig Netwerk (Auto)" class="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:outline-none focus:border-blue-500 transition" disabled title="Automatische detectie in backend modus">
                     <button id="btn-scan" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200 flex justify-center items-center gap-2">
-                        <span>Start Scan</span>
+                        <span>Start Echte Scan</span>
                         <i class="fa-solid fa-spinner fa-spin hidden" id="scan-spinner"></i>
                     </button>
+                    <div id="server-status" class="text-xs text-center text-gray-500">
+                        Klaar voor scan via Nginx proxy
+                    </div>
                 </div>
             </div>
 
@@ -148,6 +151,10 @@
         let devices = [];
         let sortCol = 'ip';
         let sortAsc = true;
+        
+        // AANGEPAST VOOR DOCKER/NGINX:
+        // We gebruiken nu een relatief pad. Nginx vangt /api/ op en stuurt het naar Node.
+        const BACKEND_URL = '/api/scan';
 
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -178,17 +185,23 @@
 
             // Check duplicate IP
             if (devices.some(d => d.ip === ip)) {
-                if(!confirm(`IP ${ip} bestaat al. Wil je deze overschrijven?`)) return false;
-                devices = devices.filter(d => d.ip !== ip);
+                // Als het een scan is, overschrijven we vaak stil, maar voor handmatig vragen we het
+                // We updaten gewoon het bestaande item in de array
+                const index = devices.findIndex(d => d.ip === ip);
+                devices[index] = {
+                    ...devices[index],
+                    hostname: hostname || devices[index].hostname,
+                    mac: mac || devices[index].mac
+                };
+            } else {
+                devices.push({
+                    id: Date.now() + Math.random(),
+                    ip: ip.trim(),
+                    hostname: hostname ? hostname.trim() : "?",
+                    mac: mac ? formatMac(mac.trim()) : "Unknown",
+                    addedAt: new Date().toISOString()
+                });
             }
-
-            devices.push({
-                id: Date.now() + Math.random(),
-                ip: ip.trim(),
-                hostname: hostname ? hostname.trim() : "Unknown",
-                mac: mac ? formatMac(mac.trim()) : "00:00:00:00:00:00",
-                addedAt: new Date().toISOString()
-            });
 
             saveData();
             renderTable();
@@ -272,70 +285,61 @@
             document.getElementById('device-count').innerText = devices.length;
         }
 
-        // --- Scan Simulatie Logic ---
+        // --- ECHTE SCAN LOGIC (praat met Backend via Nginx) ---
 
-        document.getElementById('btn-scan').addEventListener('click', () => {
-            const subnetInput = document.getElementById('subnet-input').value.trim();
-            const parts = subnetInput.split('.');
-            
-            if (parts.length < 3) {
-                showToast("Ongeldig subnet formaat (bv. 192.168.1)", "error");
-                return;
-            }
-
-            const baseIP = parts.slice(0, 3).join('.');
+        document.getElementById('btn-scan').addEventListener('click', async () => {
             const btn = document.getElementById('btn-scan');
             const spinner = document.getElementById('scan-spinner');
+            const statusTxt = document.getElementById('server-status');
             
             // UI State change
             btn.disabled = true;
             btn.classList.add('opacity-75');
             spinner.classList.remove('hidden');
+            statusTxt.innerText = "Bezig met scannen... (dit kan even duren)";
+            statusTxt.className = "text-xs text-center text-blue-400";
 
-            // Simuleer vertraging
-            setTimeout(() => {
-                // Genereer 5 tot 15 random devices
-                const count = Math.floor(Math.random() * 10) + 5;
-                let addedCount = 0;
-
-                for(let i=0; i < count; i++) {
-                    const lastOctet = Math.floor(Math.random() * 254) + 1;
-                    const ip = `${baseIP}.${lastOctet}`;
-                    
-                    // Random Hostnames
-                    const types = ['Desktop', 'Laptop', 'iPhone', 'Android', 'Printer', 'SmartTV'];
-                    const type = types[Math.floor(Math.random() * types.length)];
-                    const hostname = `${type}-${Math.floor(Math.random()*999)}`;
-                    
-                    // Genereer MAC
-                    const mac = "XX:XX:XX:XX:XX:XX".replace(/X/g, function() {
-                        return "0123456789ABCDEF".charAt(Math.floor(Math.random() * 16));
-                    });
-
-                    // Check of IP al bestaat in huidige lijst
-                    if (!devices.some(d => d.ip === ip)) {
-                        devices.push({
-                            id: Date.now() + Math.random(),
-                            ip: ip,
-                            hostname: hostname,
-                            mac: mac,
-                            addedAt: new Date().toISOString()
-                        });
-                        addedCount++;
-                    }
+            try {
+                // Roep de lokale server aan via de proxy
+                const response = await fetch(BACKEND_URL);
+                
+                if (!response.ok) {
+                    throw new Error('Server reageerde niet goed: ' + response.status);
                 }
 
-                saveData();
-                renderTable();
-                
+                const data = await response.json();
+
+                if (data.success && Array.isArray(data.devices)) {
+                    let newCount = 0;
+                    
+                    data.devices.forEach(d => {
+                        // De backend return: { ip: '...', mac: '...', name: '...' }
+                        // Wij mappen 'name' naar 'hostname'
+                        const ip = d.ip;
+                        const mac = d.mac;
+                        const hostname = d.name || "?";
+                        
+                        // Voeg toe (of update)
+                        addDevice(ip, hostname, mac);
+                        newCount++;
+                    });
+
+                    showToast(`${newCount} apparaten geupdate/gevonden!`);
+                    statusTxt.innerText = "Scan voltooid.";
+                    statusTxt.className = "text-xs text-center text-green-500";
+                }
+
+            } catch (error) {
+                console.error(error);
+                showToast("Kan backend niet bereiken.", "error");
+                statusTxt.innerText = "Fout: Is de container gestart met --network host?";
+                statusTxt.className = "text-xs text-center text-red-500 font-bold";
+            } finally {
                 // Reset UI
                 btn.disabled = false;
                 btn.classList.remove('opacity-75');
                 spinner.classList.add('hidden');
-                
-                showToast(`${addedCount} apparaten gevonden en toegevoegd!`);
-
-            }, 1500); // 1.5 seconde fake scan tijd
+            }
         });
 
         // --- Helpers ---
