@@ -283,7 +283,7 @@
         // --- SCAN LOGIC ---
         document.getElementById('btn-scan').addEventListener('click', async () => {
             const btn = document.getElementById('btn-scan');
-            if (btn.disabled) return; // Prevent double clicks
+            if (btn.disabled) return; 
 
             let baseIP = document.getElementById('base-ip-input').value.trim();
             const rangeSuffix = document.getElementById('range-suffix-input').value.trim();
@@ -296,7 +296,7 @@
 
             let subnet = '';
             if (rangeSuffix.startsWith('/') || rangeSuffix.includes('.')) subnet = baseIP + rangeSuffix;
-            else if (baseIP && rangeSuffix) subnet = baseIP + '.' + rangeSuffix; // 10.1.2.1-10 format
+            else if (baseIP && rangeSuffix) subnet = baseIP + '.' + rangeSuffix;
             else if (baseIP && !rangeSuffix) subnet = baseIP;
             else subnet = ''; 
 
@@ -313,13 +313,10 @@
             if (subnet) url += `?subnet=${encodeURIComponent(subnet)}`;
 
             try {
-                const fakeUpdates = setInterval(() => {
-                    const msgs = ["Pinging hosts...", "Reading ARP table...", "Resolving MACs..."];
-                    logToConsole(msgs[Math.floor(Math.random() * msgs.length)], "text-gray-500 italic");
-                }, 1000);
+                // VERWIJDERD: De fake setInterval update
+                logToConsole("Bezig met pingen & scannen...", "text-gray-400");
 
                 const response = await fetch(url);
-                clearInterval(fakeUpdates);
 
                 if (!response.ok) throw new Error(response.statusText);
                 const data = await response.json();
